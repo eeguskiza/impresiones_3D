@@ -1,4 +1,3 @@
-import shutil
 import zipfile
 from io import BytesIO
 from pathlib import Path

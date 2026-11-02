@@ -115,7 +115,7 @@ def pendientes(cfg, ruta=""):
 def nombre_color(hexa):
     h = hexa.lstrip("#")[:6]
     rgb = tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
-    return min(PALETA, key=lambda n: sum((a - b) ** 2 for a, b in zip(PALETA[n], rgb)))
+    return min(PALETA, key=lambda n: sum((a - b) ** 2 for a, b in zip(PALETA[n], rgb, strict=True)))
 
 
 def perfil_corto(perfil):
@@ -177,8 +177,10 @@ def recortar(datos):
     return salida.getvalue()
 
 
-def miniatura(datos, lado=320):
+def miniatura(datos, lado=200):
     im = Image.open(BytesIO(datos))
+    if max(im.size) <= lado:
+        return datos
     im.thumbnail((lado, lado))
     salida = BytesIO()
     im.save(salida, "PNG", optimize=True)
@@ -229,7 +231,7 @@ def leer_3mf(datos, cfg, pintado=None):
     try:
         z = zipfile.ZipFile(BytesIO(datos))
     except zipfile.BadZipFile:
-        raise ErrorPresupuesto("El fichero no es un 3MF válido.")
+        raise ErrorPresupuesto("El fichero no es un 3MF válido.") from None
     with z:
         nombres = z.namelist()
         if sum(i.file_size for i in z.infolist()) > MAX_DESCOMPRIMIDO:
@@ -243,7 +245,7 @@ def leer_3mf(datos, cfg, pintado=None):
             fils = filamentos_proyecto(ajustes, cfg)
             placas = placas_laminadas(z, fils)
         except (ValueError, ET.ParseError):
-            raise ErrorPresupuesto("El 3MF está dañado: no se pueden leer sus ajustes.")
+            raise ErrorPresupuesto("El 3MF está dañado: no se pueden leer sus ajustes.") from None
         imagen = next((p.imagen for p in placas if p.imagen), None) if placas else imagen_placa(z, 1)
         if pintado is None:
             pintado = es_pintado(z)
@@ -361,7 +363,7 @@ def agregar_combo(piezas):
 def serializar(proyecto):
     d = asdict(proyecto)
     d["imagen"] = base64.b64encode(proyecto.imagen).decode() if proyecto.imagen else None
-    for pl, original in zip(d["placas"], proyecto.placas):
+    for pl, original in zip(d["placas"], proyecto.placas, strict=True):
         pl["imagen"] = base64.b64encode(original.imagen).decode() if original.imagen else None
     return base64.urlsafe_b64encode(zlib.compress(json.dumps(d).encode())).decode()
 
@@ -376,7 +378,7 @@ def deserializar(texto):
              for pl in d["placas"]],
             imagen(d["imagen"]), d["avisos"], d["soportes"], d["pintado"])
     except (ValueError, KeyError, TypeError, zlib.error):
-        raise ErrorPresupuesto("El análisis no es válido: vuelve a cargar el fichero.")
+        raise ErrorPresupuesto("El análisis no es válido: vuelve a cargar el fichero.") from None
 
 
 def agregar(placas):
@@ -386,6 +388,9 @@ def agregar(placas):
             a = agregados.setdefault(f.id, replace(f, gramos=0.0))
             a.gramos += f.gramos
     return list(agregados.values())
+
+
+_TABLAS_CREADAS = set()
 
 
 @contextmanager
@@ -399,8 +404,15 @@ def _db(destino):
         db = sqlite3.connect(destino)
         db.row_factory = sqlite3.Row
     try:
-        ejecutar = lambda sql, args=(): db.execute(sql.replace("?", "%s") if postgres else sql, args)
-        ejecutar(TABLA)
+        def ejecutar(sql, args=()):
+            return db.execute(sql.replace("?", "%s") if postgres else sql, args)
+
+        ejecutar.postgres = postgres
+        if str(destino) not in _TABLAS_CREADAS:
+            if postgres:
+                ejecutar("SELECT pg_advisory_xact_lock(3203)")
+            ejecutar(TABLA)
+            _TABLAS_CREADAS.add(str(destino))
         yield ejecutar
         db.commit()
     except BaseException:
@@ -421,6 +433,8 @@ def siguiente_numero(destino):
 
 def registrar(destino, cliente, modelo, fichero, d, gramos, generar=None):
     with _db(destino) as ejecutar:
+        if ejecutar.postgres:
+            ejecutar("SELECT pg_advisory_xact_lock(3203)")
         id_ = ejecutar("INSERT INTO presupuestos (id, fecha, cliente, modelo, fichero, horas, gramos, coste, precio) "
                        "VALUES ((SELECT COALESCE(MAX(id), 0) + 1 FROM presupuestos), ?, ?, ?, ?, ?, ?, ?, ?) "
                        "RETURNING id",

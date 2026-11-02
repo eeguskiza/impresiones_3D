@@ -1,6 +1,7 @@
 import base64
 import functools
 import mimetypes
+import os
 from datetime import date
 from pathlib import Path
 
@@ -120,6 +121,8 @@ def html(ctx, raiz="/"):
 
 @functools.cache
 def pdf_disponible():
+    if os.environ.get("VERCEL"):
+        return False
     try:
         import weasyprint  # noqa: F401
         return True

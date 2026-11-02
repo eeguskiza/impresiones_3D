@@ -227,6 +227,7 @@ td { padding: 0.75rem; border-bottom: 1px solid var(--linea); white-space: nowra
 tbody tr { transition: background var(--rapido); animation: entrar 420ms var(--curva) both; animation-delay: calc(var(--i, 0) * 30ms); }
 tbody tr:hover { background: rgb(255 255 255 / .55); }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
+td.recorte { max-width: 22rem; overflow: hidden; text-overflow: ellipsis; }
 td .casilla { margin: 0; }
 
 .tostada { position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%); max-width: calc(100% - 2rem); padding: 0.75rem 1.125rem; border-radius: 62.4375rem; background: rgb(27 36 51 / .82); -webkit-backdrop-filter: var(--desenfoque); backdrop-filter: var(--desenfoque); color: #fff; box-shadow: 0 0.75rem 2rem rgb(30 41 90 / .2); font-size: .9rem; animation: subir var(--medio) var(--curva); z-index: 20; }

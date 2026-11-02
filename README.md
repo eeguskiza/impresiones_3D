@@ -2,6 +2,12 @@
 
 App web para presupuestar impresiones 3D a partir de un `.3mf` de Bambu Studio (laminado o no) y exportar el presupuesto a PDF. Funciona en local (WSL/Ubuntu) y en Vercel.
 
+- Lee el `.3mf` (laminado o no): pieza, imagen, impresora, filamentos usados y su precio por kilo.
+- Calcula el precio en vivo: material, máquina (luz, amortización, mantenimiento y fallos), complejidad de la pieza, tu tiempo y margen con redondeo.
+- Presupuesto de una pieza o pedido combo de hasta 20 piezas.
+- PDF de una página con todos los conceptos y su importe en una sola tabla que termina en el total.
+- Historial con numeración correlativa y marca de pagado.
+
 ## Local (Ubuntu / WSL2)
 
 WeasyPrint necesita Pango del sistema:

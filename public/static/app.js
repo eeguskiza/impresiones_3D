@@ -636,8 +636,8 @@ async function cargarHistorial() {
     const fila = el("tr", {}, [
       el("td", { textContent: p.numero }),
       el("td", { textContent: p.fecha.split("-").reverse().join("/") }),
-      el("td", { textContent: p.cliente }),
-      el("td", { textContent: p.modelo }),
+      el("td", { className: "recorte", textContent: p.cliente, title: p.cliente }),
+      el("td", { className: "recorte", textContent: p.modelo, title: p.modelo }),
       el("td", { className: "num", textContent: duracion(p.horas) }),
       el("td", { className: "num", textContent: gramos.format(p.gramos) }),
       el("td", { className: "num", textContent: euros.format(p.precio) }),

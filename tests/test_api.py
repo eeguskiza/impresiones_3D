@@ -45,6 +45,7 @@ def test_exportar_numera_y_vista_previa_no(cliente, ejemplo):
     assert sorted(p.name for p in cliente.salida.iterdir()) == [
         f"Presupuesto_{anio}-0001_Spiderman_urban.pdf", f"Presupuesto_{anio}-0002_Spiderman_urban.pdf"]
 
+    assert f"{anio}-0003" in cliente.post("/api/vista-previa", json=datos).text
     r = cliente.post("/api/registrar", json=datos)
     assert r.json()["numero"] == f"{anio}-0003" and "<title>Presupuesto_" in r.json()["html"]
 

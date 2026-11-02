@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import secrets
+import time
 from pathlib import Path
 from urllib.parse import quote
 
@@ -116,6 +117,12 @@ def pieza_json(p, placas, d):
 def crear_app(config=BASE / "config.toml", db=None):
     db = db or destino_por_defecto()
     clave = os.environ.get("APP_CLAVE")
+    proximo = {"numero": None, "hasta": 0.0}
+
+    def siguiente_numero():
+        if proximo["numero"] is None or time.monotonic() > proximo["hasta"]:
+            proximo.update(numero=core.siguiente_numero(db), hasta=time.monotonic() + 30)
+        return proximo["numero"]
 
     def cfg():
         return core.cargar_config(config)
@@ -128,7 +135,7 @@ def crear_app(config=BASE / "config.toml", db=None):
             placas, d = core.presupuestar(p, c, minutos, margen, datos.eur_kg, segundos, datos.gramos,
                                           datos.complejidad)
         except core.ErrorPresupuesto as e:
-            raise HTTPException(422, str(e))
+            raise HTTPException(422, str(e)) from None
         return p, c, placas, d
 
     def construir_unico(datos):
@@ -143,7 +150,7 @@ def crear_app(config=BASE / "config.toml", db=None):
         try:
             d = core.calcular_combo(piezas + ([actual] if actual else []), c, combo.minutos, combo.margen)
         except core.ErrorPresupuesto as e:
-            raise HTTPException(422, str(e))
+            raise HTTPException(422, str(e)) from None
         return c, piezas + ([actual] if actual else []), actual, d_actual, d
 
     def contexto_unico(datos, p, c, placas, d, numero, titulo_pagina=""):
@@ -156,6 +163,7 @@ def crear_app(config=BASE / "config.toml", db=None):
             return nombre, generar(crear_ctx(numero, nombre), nombre, c)
 
         _, numero, (nombre, resultado) = core.registrar(db, cliente or "—", modelo, fichero, d, gramos, con_numero)
+        proximo["numero"] = None
         log.info("Presupuesto %s: %s", numero, core.eur(d.precio))
         return numero, nombre, resultado
 
@@ -238,7 +246,7 @@ def crear_app(config=BASE / "config.toml", db=None):
         try:
             p = await asyncio.to_thread(core.leer_3mf, bytes(datos), cfg(), pintado)
         except core.ErrorPresupuesto as e:
-            raise HTTPException(422, str(e))
+            raise HTTPException(422, str(e)) from None
         finally:
             del datos
         p.meta["_fichero"] = fichero
@@ -263,14 +271,14 @@ def crear_app(config=BASE / "config.toml", db=None):
         fils = [{"perfil": f.perfil, "color": f.color, "gramos": f.gramos, "coste": f.gramos * f.eur_kg / 1000}
                 for f in core.agregar(placas)]
         return {
-            **({"html": documento.html(contexto_unico(datos, p, c, placas, d, core.siguiente_numero(db)))} if vista else {}),
+            **({"html": documento.html(contexto_unico(datos, p, c, placas, d, siguiente_numero()))} if vista else {}),
             **totales(d, fils), **complejidad(d, datos.complejidad),
         }
 
     @app.post("/api/vista-previa", response_class=HTMLResponse)
     def vista_previa(datos: Datos):
         p, c, placas, d = construir_unico(datos)
-        return documento.html(contexto_unico(datos, p, c, placas, d, core.siguiente_numero(db)))
+        return documento.html(contexto_unico(datos, p, c, placas, d, siguiente_numero()))
 
     @app.post("/api/exportar")
     def exportar(datos: Datos):
@@ -285,7 +293,7 @@ def crear_app(config=BASE / "config.toml", db=None):
     @app.post("/api/combo/calcular")
     def calcular_combo(combo: Combo, vista: bool = False):
         c, piezas, actual, d_actual, d = construir_combo(combo)
-        ctx = documento.contexto_combo(c, piezas, d, combo.cliente, core.siguiente_numero(db), combo.desglose,
+        ctx = documento.contexto_combo(c, piezas, d, combo.cliente, siguiente_numero(), combo.desglose,
                                        margen=combo.margen) if vista else None
         fils = [{"perfil": f["perfil"], "color": f["color"], "gramos": f["gramos"], "coste": f["coste"]}
                 for f in core.agregar_combo(piezas)]
