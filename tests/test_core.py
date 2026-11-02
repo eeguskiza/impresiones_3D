@@ -101,3 +101,16 @@ def test_precio_por_perfil_sin_impresora(ejemplo, cfg):
     cfg = {**cfg, "filamentos_eur_kg": {"Bambu PLA Matte": 30.0, "PLA": 20.0}}
     fils = core.leer_3mf(ejemplo, cfg).filamentos
     assert [(f.eur_kg, f.origen) for f in fils.values()] == [(30.0, "lista"), (20.0, "tipo"), (30.0, "lista")]
+
+
+def test_titulo_escapado(ejemplo, cfg):
+    import zipfile
+    from io import BytesIO
+    salida = BytesIO()
+    with zipfile.ZipFile(BytesIO(ejemplo)) as origen, zipfile.ZipFile(salida, "w") as z:
+        for i in origen.infolist():
+            datos = origen.read(i)
+            if i.filename == "3D/3dmodel.model":
+                datos = datos.replace(b">Urban Spiderman<", b">Switch 1&amp;amp;2 Case<")
+            z.writestr(i.filename, datos)
+    assert core.leer_3mf(salida.getvalue(), cfg).meta["Title"] == "Switch 1&2 Case"

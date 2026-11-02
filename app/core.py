@@ -1,4 +1,5 @@
 import base64
+import html
 import json
 import math
 import os
@@ -142,7 +143,7 @@ def metadatos_modelo(z):
             if evento == "start" and el.tag == NS_3MF + "resources":
                 break
             if evento == "end" and el.tag == NS_3MF + "metadata":
-                meta[el.get("name")] = (el.text or "").strip()
+                meta[el.get("name")] = html.unescape((el.text or "").strip())
     return meta
 
 

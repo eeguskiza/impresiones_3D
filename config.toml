@@ -44,9 +44,10 @@ minimo = -0.05
 maximo = 0.15
 
 # Precio €/kg por perfil (con o sin "@impresora") o por tipo; si no aparece, se usa el del perfil de Bambu Studio
-# Precios genéricos de bobina de 1 kg en la tienda EU de Bambu Lab; ajústalos a lo que pagues tú
+# PLA = precio para cualquier PLA que no tenga su propia línea
 [filamentos_eur_kg]
-"Bambu PLA Basic" = 23.57
-"Bambu PLA Matte" = 23.57
-"Bambu PLA Silk+" = 26.64
+PLA = 19.99
+"Bambu PLA Basic" = 19.99
+"Bambu PLA Matte" = 19.99
+"Bambu PLA Silk+" = 19.99
 "Bambu PETG Translucent" = 24.99

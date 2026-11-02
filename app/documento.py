@@ -1,5 +1,6 @@
 import base64
 import functools
+import math
 import mimetypes
 import os
 from datetime import date
@@ -30,6 +31,11 @@ def logo_uri(ruta):
     return data_uri(p.read_bytes(), mimetypes.guess_type(p.name)[0] or "image/png")
 
 
+def alto_fila(concepto, detalle, compacta=False):
+    lineas = max(1, math.ceil(len(concepto or "") / 24), math.ceil(len(detalle or "") / 52))
+    return (2.2 if compacta else 3.6) + lineas * (3.9 if compacta else 4.4)
+
+
 def base(cfg, d, cliente, numero, mostrar_desglose, titulo, detalle, imagenes, piezas, titulo_pagina="",
          margen=None, combo=False):
     prod = cfg["produccion"]
@@ -45,8 +51,9 @@ def base(cfg, d, cliente, numero, mostrar_desglose, titulo, detalle, imagenes, p
             if not mostrar_desglose:
                 lineas = [] if combo else [linea(p["titulo"], resumen(p))]
             elif nivel == 3:
-                extra = f" · complejidad {porcentaje(p['ajuste_pct'])}" if round(p["ajuste"], 2) else ""
-                lineas = [linea(p["titulo"], resumen(p) + extra, p["material"] + p["maquina"] + p["ajuste"])]
+                extra = f" · {porcentaje(p['ajuste_pct'])}" if round(p["ajuste"], 2) else ""
+                titulo = p["titulo"] if len(p["titulo"]) <= 26 else p["titulo"][:25].rstrip() + "…"
+                lineas = [linea(titulo, resumen(p) + extra, p["material"] + p["maquina"] + p["ajuste"])]
             else:
                 if nivel == 1:
                     lineas = [linea(perfil_corto(f["perfil"]), f"{nombre_color(f['color'])} · {gramos_txt(f['gramos'])} × "
@@ -61,18 +68,23 @@ def base(cfg, d, cliente, numero, mostrar_desglose, titulo, detalle, imagenes, p
                 if round(p["ajuste"], 2):
                     lineas.append(linea(f"Complejidad {porcentaje(p['ajuste_pct'])}", " · ".join(p["motivos"]), p["ajuste"]))
             grupos.append({"titulo": p["titulo"] if combo and nivel < 3 else "", "detalle": resumen(p), "lineas": lineas})
-        alto = lambda l: 9.5 if nivel == 2 and l["concepto"] == "Material" else 7
-        return grupos, sum(7 * bool(g["titulo"]) + sum(alto(l) for l in g["lineas"]) for g in grupos)
+        return grupos
 
-    comunes = 2 if mostrar_desglose and round(d.mano_obra, 2) else 1
+    def medir(grupos, comunes, compacta=False):
+        filas = [(g["titulo"], g["detalle"]) for g in grupos if g["titulo"]]
+        filas += [(l["concepto"], l["detalle"]) for g in grupos for l in g["lineas"]] + comunes
+        return 9 + 14.5 + sum(alto_fila(c, x, compacta) for c, x in filas)
+
+    previstas = [("Preparación y acabado", "15 min × 21,00 €/h")] if mostrar_desglose and round(d.mano_obra, 2) else []
+    previstas.append(("Margen", "5 % y redondeo a 0,50 €"))
     for nivel in (1, 2, 3):
-        grupos, filas = agrupar(nivel)
-        tabla = 9 + 14 + 7 * comunes + filas
-        if tabla <= 150:
+        grupos = agrupar(nivel)
+        tabla = medir(grupos, previstas)
+        if tabla <= 160:
             break
-    compacta = tabla > 150
+    compacta = tabla > 160
     if compacta:
-        tabla = 9 + 14 + (tabla - 23) * 5.5 / 7
+        tabla = medir(grupos, previstas, compacta=True)
     comunes = []
     if mostrar_desglose:
         if round(d.mano_obra, 2):

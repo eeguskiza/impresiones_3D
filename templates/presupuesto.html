@@ -54,7 +54,7 @@ td { padding: 0; vertical-align: top; }
 .caja-conceptos { margin-top: 8mm; border: 0.6pt solid #E3E6EB; border-radius: 3mm; overflow: hidden; }
 .conceptos th { text-align: left; padding: 3mm 4mm 2mm; font-weight: 500; background: #F3F4F7; }
 .conceptos th.num, .conceptos td.num { text-align: right; }
-.conceptos { line-height: 1.3; }
+.conceptos { line-height: 1.3; table-layout: fixed; }
 .conceptos td { padding: 1.7mm 4mm; vertical-align: middle; border-top: 0.6pt solid #EEF0F3; }
 .conceptos td.detalle { color: #6B7280; font-size: 8pt; }
 .conceptos.compacta td { padding-top: 0.9mm; padding-bottom: 0.9mm; font-size: 8.5pt; }
@@ -64,7 +64,7 @@ td { padding: 0; vertical-align: top; }
 .conceptos tr.comun.primera td { border-top: 0.8pt solid #D0D5DD; }
 .conceptos .fila-total td { background: {{ marca.color_acento }}; color: #fff; border-top: 0; padding-top: 3mm; padding-bottom: 3mm; font-weight: 700; font-size: 11pt; letter-spacing: 0.5pt; }
 .conceptos .fila-total td.detalle { color: rgb(255 255 255 / 80%); font-weight: 400; font-size: 8pt; letter-spacing: 0; }
-.conceptos .fila-total td.num { font-size: 18pt; letter-spacing: 0; }
+.conceptos .fila-total td.num { font-size: 16pt; letter-spacing: 0; }
 .punto { display: inline-block; width: 3.6mm; height: 3.6mm; border-radius: 50%; border: 0.8pt solid #E3E6EB; vertical-align: -0.6mm; margin-right: 2mm; }
 .pie { position: absolute; left: 20mm; right: 20mm; bottom: 15mm; border-top: 0.6pt solid #E3E6EB; padding-top: 6mm; }
 .pie td { vertical-align: top; }
@@ -136,7 +136,7 @@ td { padding: 0; vertical-align: top; }
         <thead><tr>
           <th class="etiqueta" style="width: 52mm">Concepto</th>
           <th class="etiqueta">Detalle</th>
-          <th class="etiqueta num" style="width: 26mm">Importe</th>
+          <th class="etiqueta num" style="width: 36mm">Importe</th>
         </tr></thead>
         <tbody>
         {% for g in grupos %}
