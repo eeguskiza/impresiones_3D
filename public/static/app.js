@@ -469,8 +469,12 @@ function pintarReparto(partes) {
   colocarEtiquetas();
 }
 
+function rem() {
+  return parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+}
+
 function colocarEtiquetas() {
-  const grafico = $("#reparto"), alto = grafico.clientHeight, minimo = 22;
+  const grafico = $("#reparto"), alto = grafico.clientHeight, minimo = 1.375 * rem();
   const etiquetas = [...grafico.querySelectorAll(".reparto-etiqueta")];
   const centros = etiquetas.map((e) => Number(e.dataset.centro) * alto), y = [...centros];
   for (let i = 0; i < y.length; i++) y[i] = Math.max(y[i], i ? y[i - 1] + minimo : minimo / 2);
@@ -478,7 +482,7 @@ function colocarEtiquetas() {
   etiquetas.forEach((e, i) => (e.style.top = `${y[i]}px`));
   for (const s of grafico.querySelectorAll(".segmento")) {
     s.style.setProperty("--tinta", tinta(s));
-    s.firstChild.hidden = s.clientHeight < 20;
+    s.firstChild.hidden = s.clientHeight < 1.25 * rem();
   }
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("class", "reparto-conectores");
@@ -504,7 +508,7 @@ function ajustarRellenos() {
     const ocupado = [...columna.children].filter((c) => c !== relleno && c.offsetParent)
       .reduce((s, c) => s + c.offsetHeight + hueco, 0);
     const libre = columna.clientHeight - parseFloat(estilo.paddingTop) - parseFloat(estilo.paddingBottom) - ocupado;
-    const cabe = libre >= Number(relleno.dataset.minimo);
+    const cabe = libre >= Number(relleno.dataset.minimo) * rem() / 16;
     relleno.classList.toggle("sin-sitio", !cabe);
     previo.classList.toggle("estira", !cabe);
   }
