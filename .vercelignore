@@ -1,0 +1,7 @@
+.venv/
+tests/
+ejemplos/
+run.sh
+registro.db
+presupuestos/
+config.local.toml

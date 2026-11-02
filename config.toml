@@ -1,0 +1,47 @@
+[app]
+puerto = 8000
+nivel_log = "INFO"
+carpeta_salida = "presupuestos"
+
+[marca]
+nombre = "Impresiones 3D"
+logo = ""
+lema = ""
+color_principal = "#1B2433"
+color_acento = "#FF5A36"
+
+# Datos personales: ponlos en config.local.toml (no se sube) o en las variables EMISOR_NOMBRE y EMISOR_BIZUM
+[emisor]
+nombre = "[REEMPLAZAR]"
+bizum = "[REEMPLAZAR]"
+titulo_documento = "Presupuesto"
+
+[maquina]
+precio_eur = 849.0
+horas_amortizacion = 3000
+potencia_media_w = 200
+mantenimiento_eur_h = 0.10
+
+[energia]
+precio_kwh = 0.12
+
+[produccion]
+tasa_fallo = 0.08
+mano_obra_eur_h = 21.0
+minutos_por_defecto = 0
+margen = 0.0
+redondeo_eur = 0.5
+
+# Ajuste sobre material y máquina según la complejidad de la pieza (0.03 = 3 %)
+[complejidad]
+un_color = -0.05
+por_color_extra = 0.03
+pintado = 0.04
+soportes = 0.03
+horas_larga = 12
+larga = 0.03
+minimo = -0.05
+maximo = 0.15
+
+# Precio €/kg por perfil exacto o por tipo; si no aparece, se usa el del perfil de Bambu Studio
+[filamentos_eur_kg]

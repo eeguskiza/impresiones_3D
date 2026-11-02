@@ -1,0 +1,10 @@
+{
+  "framework": null,
+  "functions": {
+    "api/index.py": {
+      "includeFiles": "{config.toml,app/**,static/**,templates/**,fonts/**}",
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
+}

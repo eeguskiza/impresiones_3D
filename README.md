@@ -1,0 +1,79 @@
+# Presupuesto 3D
+
+App web para presupuestar impresiones 3D a partir de un `.3mf` de Bambu Studio (laminado o no) y exportar el presupuesto a PDF. Funciona en local (WSL/Ubuntu) y en Vercel.
+
+## Local (Ubuntu / WSL2)
+
+WeasyPrint necesita Pango del sistema:
+
+```bash
+sudo apt install libpango-1.0-0 libpangoft2-1.0-0
+```
+
+En Ubuntu 24.04 o superior añade también `libharfbuzz-subset0` (en 22.04 no existe; WeasyPrint funciona igual y solo muestra un aviso).
+
+Python 3.11 o superior. Arranque:
+
+```bash
+./run.sh
+```
+
+La primera vez crea `.venv` e instala `requirements.txt` (con `uv` si está; si no, `venv` + `pip`). Escucha solo en `127.0.0.1` (si el puerto está ocupado prueba los siguientes) y abre el navegador de Windows. En local el PDF lo genera WeasyPrint, se descarga y se guarda en `presupuestos/`; el historial va en `registro.db` (SQLite).
+
+Tests:
+
+```bash
+uv pip install -p .venv -r requirements-dev.txt   # o .venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python -m pytest
+```
+
+Los tests de lectura usan `ejemplos/Spiderman_urban.3mf`, que no está en el repo por su licencia: si falta, se saltan.
+
+## Vercel
+
+1. En Vercel: **Add New → Project** e importa este repositorio (no hace falta tocar la configuración de build, va en `vercel.json`).
+2. **Storage → Create Database → Neon (Postgres)** y conéctala al proyecto. Crea `DATABASE_URL`, que se usa para el historial y la numeración.
+3. **Settings → Environment Variables**:
+   - `EMISOR_NOMBRE`: tu nombre para el presupuesto.
+   - `EMISOR_BIZUM`: tu teléfono de Bizum.
+   - `APP_CLAVE`: contraseña de acceso (muy recomendable: sin ella cualquiera con la URL ve tu historial). El navegador la pide al entrar; el usuario da igual.
+4. Vuelve a desplegar para que coja las variables.
+
+Diferencias con local:
+
+- Vercel no tiene las librerías de WeasyPrint, así que «Exportar PDF» registra el número y abre el diálogo de impresión con el mismo documento de la vista previa: elige **Guardar como PDF** (en Chrome/Edge el nombre del fichero ya viene puesto).
+- El `.3mf` se aligera en el navegador antes de subirlo (solo viajan los ajustes, las imágenes de las placas y si la pieza está pintada), porque Vercel limita las peticiones a 4,5 MB.
+- Sin `DATABASE_URL` funciona, pero el historial se pierde en cada despliegue.
+
+## Estructura
+
+```
+app/core.py          lectura del 3MF, filamentos, complejidad, cálculo, historial (SQLite o Postgres)
+app/documento.py     contexto de la plantilla, HTML y PDF (WeasyPrint)
+app/main.py          API FastAPI (sin estado: el análisis viaja con cada petición)
+app/__main__.py      arranque local de uvicorn y apertura del navegador
+api/index.py         entrada para Vercel
+templates/           presupuesto.html: plantilla única para vista previa y PDF
+static/              interfaz (index.html, app.css, app.js)
+fonts/               Poppins (OFL)
+tests/               pytest
+```
+
+## Configuración
+
+`config.toml` está en el repo, así que **no pongas ahí datos personales**: en local van en `config.local.toml` (no se sube; sobrescribe lo que pongas) y en Vercel en variables de entorno (`EMISOR_NOMBRE`, `EMISOR_BIZUM`, `MARCA_NOMBRE`).
+
+```toml
+# config.local.toml
+[emisor]
+nombre = "Tu nombre"
+bizum = "600000000"
+```
+
+- `[marca]`: nombre, `logo` opcional (ruta a SVG/PNG; vacío = solo texto), `lema`, colores.
+- `[app]`: `puerto`, `nivel_log` y `carpeta_salida` (solo local).
+- `[maquina]`, `[energia]`, `[produccion]`: costes, tu hora, margen y redondeo.
+- `[complejidad]`: ajuste sobre material y máquina según la pieza (un color, colores extra, pintada a color, soportes, impresión larga) con sus límites.
+- `[filamentos_eur_kg]`: precio por perfil exacto (`"Bambu PLA Matte @BBL X2D" = 24.99`) o por tipo (`PLA = 20`). Si falta, se usa el de Bambu Studio; se puede ajustar en la interfaz.
+
+La interfaz avisa mientras quede algún `[REEMPLAZAR]`.

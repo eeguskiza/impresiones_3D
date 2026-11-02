@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>{{ titulo_pagina or emisor.titulo_documento ~ " " ~ numero ~ " · " ~ marca.nombre }}</title>
+<meta name="author" content="{{ emisor.nombre }}">
+<style>
+@font-face { font-family: Poppins; font-weight: 300; src: url("{{ raiz }}fonts/Poppins-Light.ttf"); }
+@font-face { font-family: Poppins; font-weight: 400; src: url("{{ raiz }}fonts/Poppins-Regular.ttf"); }
+@font-face { font-family: Poppins; font-weight: 500; src: url("{{ raiz }}fonts/Poppins-Medium.ttf"); }
+@font-face { font-family: Poppins; font-weight: 700; src: url("{{ raiz }}fonts/Poppins-Bold.ttf"); }
+@page { size: A4; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { font-family: Poppins, sans-serif; color: {{ marca.color_principal }}; font-size: 9.5pt; }
+@media screen {
+  html { background: #fff; }
+  body { width: 210mm; }
+}
+.pagina { width: 210mm; height: 297mm; position: relative; overflow: hidden; background: #fff; }
+table { border-collapse: collapse; width: 100%; }
+td { padding: 0; vertical-align: top; }
+.cabecera { background: {{ marca.color_principal }}; height: 46mm; padding: 13mm 20mm 0; }
+.cabecera td { vertical-align: middle; }
+.logo { height: 20mm; max-width: 40mm; margin-right: 7mm; vertical-align: middle; }
+.marca { display: inline-block; vertical-align: middle; }
+.marca-nombre { color: #fff; font-weight: 700; font-size: 24pt; letter-spacing: 2pt; text-transform: uppercase; line-height: 1.1; }
+.lema { color: #B8C0CC; font-weight: 300; font-size: 9.5pt; margin-top: 1.5mm; }
+.doc { text-align: right; }
+.doc-titulo { color: {{ marca.color_acento }}; font-weight: 500; font-size: 8.5pt; letter-spacing: 2pt; text-transform: uppercase; }
+.doc-numero { color: #fff; font-weight: 700; font-size: 17pt; margin-top: 1mm; }
+.doc-fecha { color: #B8C0CC; font-size: 9pt; }
+.franja { height: 2mm; background: {{ marca.color_acento }}; }
+.contenido { padding: 10mm 20mm 0; }
+.etiqueta { color: #6B7280; font-weight: 500; font-size: 7.5pt; letter-spacing: 1.2pt; text-transform: uppercase; }
+.tarjetas { table-layout: fixed; }
+.tarjetas td { width: 82mm; }
+.tarjetas td.hueco { width: 6mm; }
+.tarjeta { background: #F3F4F7; border-radius: 3mm; padding: 5mm; height: 26mm; }
+.tarjeta-valor { font-weight: 500; font-size: 12.5pt; margin-top: 1.5mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tarjeta-detalle { color: #6B7280; font-size: 8.5pt; margin-top: 1mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hero { margin-top: 8mm; }
+.hero td.imagen { width: 100mm; }
+.caja-imagen { background: #F3F4F7; border-radius: 4mm; height: {{ alto_hero }}mm; text-align: center; padding: 4mm; }
+.caja-imagen table { height: 100%; }
+.caja-imagen td { vertical-align: middle; text-align: center; }
+.caja-imagen img { max-height: {{ alto_hero - 8 }}mm; max-width: {{ (92 - 3 * (imagenes|length - 1)) / (imagenes|length or 1) }}mm; margin: 0 1.5mm; vertical-align: middle; }
+.datos { padding-left: 8mm !important; }
+.bloque { height: {{ alto_hero / 3 }}mm; padding-top: 4mm; border-bottom: 0.6pt solid #E3E6EB; }
+.bloque.ultimo { border-bottom: 0; }
+.bloque-valor { font-weight: 700; font-size: 20pt; margin-top: 1mm; }
+.circulos { margin-top: 2.5mm; }
+.circulo { display: inline-block; width: 7.2mm; height: 7.2mm; border-radius: 50%; border: 0.8pt solid #E3E6EB; margin-right: 2.3mm; }
+.filamentos { margin-top: 10mm; }
+.filamentos th { text-align: left; padding: 0 0 3mm; font-weight: 500; }
+.filamentos th.num, .filamentos td.num { text-align: right; }
+.filamentos td { padding: 1.8mm 0; vertical-align: middle; }
+.filamentos td:first-child { padding-left: 4mm; }
+.filamentos td:last-child, .filamentos th:last-child { padding-right: 4mm; }
+.filamentos tr.par td { background: #F3F4F7; }
+.filamentos tr.par td:first-child { border-radius: 2mm 0 0 2mm; }
+.filamentos tr.par td:last-child { border-radius: 0 2mm 2mm 0; }
+.punto { display: inline-block; width: 4.6mm; height: 4.6mm; border-radius: 50%; border: 0.8pt solid #E3E6EB; vertical-align: middle; margin-right: 2mm; }
+.totales { margin-top: 6mm; }
+.totales td.izq { padding-right: 12mm; }
+.linea td { padding: 0.9mm 0; font-size: 9pt; }
+.linea td.etq { color: #6B7280; }
+.linea td.val { text-align: right; font-weight: 500; }
+.nota { color: #6B7280; font-size: 9pt; }
+.nota-ajuste { color: #6B7280; font-size: 7.5pt; margin-top: 1.5mm; }
+.total { width: 66mm; height: 30mm; background: {{ marca.color_acento }}; border-radius: 4mm; padding: 6mm; color: #fff; }
+.total-etq { font-weight: 500; font-size: 8pt; letter-spacing: 2pt; }
+.total-valor { font-weight: 700; font-size: 26pt; text-align: right; margin-top: 1mm; line-height: 1.2; }
+.pie { position: absolute; left: 20mm; right: 20mm; bottom: 15mm; border-top: 0.6pt solid #E3E6EB; padding-top: 6mm; }
+.pie td { vertical-align: top; }
+.bizum { font-weight: 500; font-size: 10pt; }
+.orientativo { color: #6B7280; font-size: 8pt; margin-top: 1mm; }
+.gracias { text-align: right; font-weight: 500; font-size: 8pt; color: #6B7280; }
+.franja-pie { position: absolute; left: 0; right: 0; bottom: 0; height: 3mm; background: {{ marca.color_acento }}; }
+</style>
+</head>
+<body>
+<div class="pagina">
+  <div class="cabecera">
+    <table><tr>
+      <td>
+        {% if logo %}<img class="logo" src="{{ logo }}" alt="">{% endif %}
+        <div class="marca">
+          <div class="marca-nombre">{{ marca.nombre }}</div>
+          {% if marca.lema %}<div class="lema">{{ marca.lema }}</div>{% endif %}
+        </div>
+      </td>
+      <td class="doc">
+        <div class="doc-titulo">{{ emisor.titulo_documento }}</div>
+        <div class="doc-numero">Nº {{ numero }}</div>
+        <div class="doc-fecha">{{ fecha }}</div>
+      </td>
+    </tr></table>
+  </div>
+  <div class="franja"></div>
+
+  <div class="contenido">
+    <table class="tarjetas"><tr>
+      <td><div class="tarjeta">
+        <div class="etiqueta">Para</div>
+        <div class="tarjeta-valor">{{ cliente }}</div>
+        <div class="tarjeta-detalle">De: {{ emisor.nombre }}</div>
+      </div></td>
+      <td class="hueco"></td>
+      <td><div class="tarjeta">
+        <div class="etiqueta">Pieza</div>
+        <div class="tarjeta-valor">{{ titulo }}</div>
+        <div class="tarjeta-detalle">{{ detalle_pieza }}</div>
+      </div></td>
+    </tr></table>
+
+    <table class="hero"><tr>
+      <td class="imagen"><div class="caja-imagen"><table><tr><td>
+        {% for img in imagenes %}<img src="{{ img }}" alt="">{% endfor %}
+      </td></tr></table></div></td>
+      <td class="datos">
+        <div class="bloque">
+          <div class="etiqueta">Tiempo de impresión</div>
+          <div class="bloque-valor">{{ tiempo }}</div>
+        </div>
+        <div class="bloque">
+          <div class="etiqueta">Peso total</div>
+          <div class="bloque-valor">{{ peso }}</div>
+        </div>
+        <div class="bloque ultimo">
+          <div class="etiqueta">Colores</div>
+          <div class="circulos">{% for f in filamentos[:8] %}<span class="circulo" style="background: {{ f.color }}"></span>{% endfor %}</div>
+        </div>
+      </td>
+    </tr></table>
+
+    <table class="filamentos">
+      <thead><tr>
+        <th class="etiqueta" style="padding-left: 4mm; width: 34mm">Color</th>
+        <th class="etiqueta">Filamento</th>
+        <th class="etiqueta num">Gramos</th>
+        <th class="etiqueta num" style="width: 32mm">Material</th>
+      </tr></thead>
+      <tbody>
+      {% for f in filamentos %}
+        <tr class="{{ 'par' if loop.index0 is even }}">
+          <td><span class="punto" style="background: {{ f.color }}"></span>{{ f.nombre_color }}</td>
+          <td>{{ f.perfil }}</td>
+          <td class="num">{{ f.gramos }}</td>
+          <td class="num">{{ f.coste }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+
+    <table class="totales"><tr>
+      <td class="izq">
+        {% if mostrar_desglose %}
+        <table>
+          {% for etq, val in desglose %}<tr class="linea"><td class="etq">{{ etq }}</td><td class="val">{{ val }}</td></tr>{% endfor %}
+        </table>
+        {% if nota_ajuste %}<div class="nota-ajuste">Complejidad: {{ nota_ajuste }}</div>{% endif %}
+        {% else %}
+        <div class="nota">Incluye material, uso de máquina y preparación.</div>
+        {% endif %}
+      </td>
+      <td style="width: 66mm"><div class="total">
+        <div class="total-etq">TOTAL</div>
+        <div class="total-valor">{{ total }}</div>
+      </div></td>
+    </tr></table>
+  </div>
+
+  <div class="pie">
+    <table><tr>
+      <td>
+        <div class="bizum">Paga por Bizum al {{ emisor.bizum }}</div>
+        <div class="orientativo">Precio orientativo: puede variar si cambian el material, los colores o el tamaño.</div>
+      </td>
+      <td class="gracias">Gracias por confiar en {{ marca.nombre }}</td>
+    </tr></table>
+  </div>
+  <div class="franja-pie"></div>
+</div>
+</body>
+</html>
