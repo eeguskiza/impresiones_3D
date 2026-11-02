@@ -29,7 +29,7 @@ def logo_uri(ruta):
     return data_uri(p.read_bytes(), mimetypes.guess_type(p.name)[0] or "image/png")
 
 
-def contexto(cfg, proyecto, placas, d, cliente, numero, mostrar_desglose, fichero="", titulo_pagina="", notas=""):
+def contexto(cfg, proyecto, placas, d, cliente, numero, mostrar_desglose, fichero="", titulo_pagina=""):
     fils = agregar(placas)
     meta = proyecto.meta
     detalle = " · ".join(filter(None, [f"Diseño de {meta['Designer']}" if meta.get("Designer") else "",
@@ -40,8 +40,7 @@ def contexto(cfg, proyecto, placas, d, cliente, numero, mostrar_desglose, ficher
         "marca": cfg["marca"], "emisor": cfg["emisor"], "logo": logo_uri(cfg["marca"].get("logo")),
         "numero": numero, "titulo_pagina": titulo_pagina, "fecha": date.today().strftime("%d/%m/%Y"), "cliente": cliente or "—",
         "titulo": meta.get("Title") or fichero, "detalle_pieza": detalle, "imagenes": imagenes,
-        "alto_hero": max(52, 88 - max(0, len(fils) - 3) * 8 - (32 if notas.strip() else 0)),
-        "notas": notas.strip(),
+        "alto_hero": max(52, 88 - max(0, len(fils) - 3) * 8),
         "tiempo": duracion_txt(d.horas), "peso": gramos_txt(sum(f.gramos for f in fils)),
         "filamentos": [{"color": f.color[:7], "nombre_color": nombre_color(f.color), "perfil": perfil_corto(f.perfil),
                         "gramos": gramos_txt(f.gramos), "coste": eur(f.gramos * f.eur_kg / 1000)} for f in fils],

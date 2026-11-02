@@ -50,7 +50,6 @@
           </div>
         </article>
 
-        <ul id="avisos" class="avisos entra" style="--i:1"></ul>
 
         <form id="formulario" class="tarjeta entra" style="--i:2" autocomplete="off" novalidate>
           <div class="campos principales">
@@ -69,12 +68,18 @@
           <div id="filamentos" class="filamentos"></div>
         </form>
 
-        <section class="tarjeta notas relleno entra" data-minimo="90" style="--i:3">
-          <div class="notas-cabecera">
-            <label for="notas" class="etiqueta">Notas para el cliente</label>
-            <span id="notas-cuenta" class="notas-cuenta">0/280</span>
+        <section class="tarjeta tiempo relleno entra" data-minimo="132" style="--i:3">
+          <div class="tiempo-cabecera">
+            <div>
+              <span class="etiqueta">Tiempo</span>
+              <div id="tiempo-leyenda" class="leyenda"></div>
+            </div>
+            <span id="tiempo-fin" class="tiempo-fin"></span>
           </div>
-          <textarea id="notas" maxlength="280" placeholder="Salen en el PDF. Por ejemplo: incluye pintar los ojos a mano."></textarea>
+          <div class="tiempo-grafico">
+            <div id="tiempo-barra" class="tiempo-barra" role="img"></div>
+            <div id="tiempo-marcas" class="tiempo-marcas"></div>
+          </div>
         </section>
       </div>
 
@@ -96,7 +101,6 @@
             <div class="medidor"><span id="medidor-marca" class="medidor-marca"></span></div>
             <div class="medidor-extremos"><span>Sencilla</span><span>Compleja</span></div>
             <ul id="motivos" class="motivos"></ul>
-            <p id="complejidad-importe" class="complejidad-importe"></p>
           </section>
           <section class="tarjeta reparto relleno entra" data-minimo="150" style="--i:5">
             <div class="etiqueta">Reparto del precio</div>

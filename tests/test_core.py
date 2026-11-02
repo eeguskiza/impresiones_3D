@@ -19,9 +19,8 @@ def test_parseo_ejemplo(ejemplo, cfg):
         (3, "Bambu PLA Matte", "#DE4343", 24.99),
     ]
     assert [core.nombre_color(f.color) for f in p.filamentos.values()] == ["Blanco", "Negro", "Rojo"]
-    assert any("X2D" in a for a in p.avisos)
-    assert any("Licencia" in a for a in p.avisos)
-    assert any("no está laminado" in a for a in p.avisos)
+    assert [a[:2] for a in p.avisos] == [["aviso", "Para Bambu Lab H2C"], ["info", "Standard Digital File License"],
+                                         ["aviso", "Sin laminar"]]
 
 
 def test_calculo_valores_conocidos(ejemplo, cfg):
@@ -37,7 +36,7 @@ def test_calculo_valores_conocidos(ejemplo, cfg):
 def test_laminado_no_pide_datos(laminado, cfg):
     p = core.leer_3mf(laminado, cfg)
     assert p.laminado
-    assert not any("no está laminado" in a for a in p.avisos)
+    assert not any(a[1] == "Sin laminar" for a in p.avisos)
     _, d = core.presupuestar(p, cfg, 15)
     assert d.precio == 14.50
 

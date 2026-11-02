@@ -239,12 +239,14 @@ def leer_3mf(datos, cfg, pintado=None):
             pintado = es_pintado(z)
     avisos = []
     if "X2D" not in meta["_impresora"]:
-        avisos.append(f"El proyecto está configurado para {meta['_impresora'] or 'otra impresora'}, "
-                      "no para la X2D. Lamina para la X2D antes de presupuestar.")
+        avisos.append(["aviso", f"Para {meta['_impresora'] or 'otra impresora'}",
+                       f"El proyecto está configurado para {meta['_impresora'] or 'otra impresora'}, "
+                       "no para la X2D. Lamina para la X2D antes de presupuestar."])
     if meta.get("License"):
-        avisos.append(f"Licencia del modelo: {meta['License']}")
+        avisos.append(["info", meta["License"], f"Licencia del modelo: {meta['License']}"])
     if not placas:
-        avisos.append("El fichero no está laminado. Introduce el tiempo y los gramos de la vista previa de Bambu Studio.")
+        avisos.append(["aviso", "Sin laminar",
+                       "El fichero no está laminado. Introduce el tiempo y los gramos de la vista previa de Bambu Studio."])
     return Proyecto(meta, fils, placas, imagen, avisos, ajustes.get("enable_support") == "1", pintado)
 
 

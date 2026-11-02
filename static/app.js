@@ -10,7 +10,7 @@ const NECESARIOS = /^(\[Content_Types\]\.xml|3D\/3dmodel\.model|Metadata\/(proje
 const MALLAS = /^3D\/.+\.model$/;
 const SERIES = { material: 1, maquina: 2, complejidad: 3, tiempo: 4, margen: 5 };
 
-const estado = { config: null, analisis: null, total: 0, temporizador: 0, peticion: null, valido: false };
+const estado = { config: null, analisis: null, total: 0, temporizador: 0, peticion: null, valido: false, tiempo: null };
 
 function el(etiqueta, props = {}, hijos = []) {
   const n = Object.assign(document.createElement(etiqueta), props);
@@ -42,6 +42,7 @@ function numero(valor) {
 
 function duracion(horas) {
   const total = Math.round(horas * 60);
+  if (total < 60) return `${total} min`;
   return `${Math.floor(total / 60)} h ${String(total % 60).padStart(2, "0")} min`;
 }
 
@@ -198,26 +199,28 @@ async function subir(fichero) {
 function mostrar(a) {
   estado.analisis = a;
   estado.total = 0;
+  estado.tiempo = null;
+  $("#tiempo-fin").textContent = "—";
+  $("#tiempo-barra").replaceChildren();
+  $("#tiempo-leyenda").replaceChildren();
+  $("#tiempo-marcas").replaceChildren();
   $("#soltar").classList.add("compacto");
   $("#pieza-img").src = a.imagen ? `data:image/png;base64,${a.imagen}` : "";
   $("#pieza-img").hidden = !a.imagen;
   $("#pieza-titulo").textContent = a.titulo;
   $("#pieza-detalle").textContent = [a.disenador && `Diseño de ${a.disenador}`, a.impresora].filter(Boolean).join(" · ");
   $("#pieza-chips").replaceChildren(
-    el("span", { className: `chip ${a.laminado ? "si" : "no"}`, textContent: a.laminado ? "Laminado" : "Sin laminar" }),
+    ...(a.laminado ? [el("span", { className: "chip si", textContent: "Laminado" })] : []),
+    ...a.avisos.map((x) => el("span", { className: `chip ${x.tipo === "aviso" ? "no" : ""}`, textContent: x.corto, title: x.texto })),
     ...(a.placas.length > 1 ? [el("span", { className: "chip", textContent: `${a.placas.length} placas` })] : []),
     el("span", { className: "chip", textContent: a.fichero }),
   );
-  $("#avisos").replaceChildren(...a.avisos.map((t) =>
-    el("li", { className: t.startsWith("Licencia") ? "info" : "", textContent: t, title: t })));
 
   const f = $("#formulario");
   f.minutos.value = String(estado.config.minutos).replace(".", ",");
   f.margen.value = String(Math.round(estado.config.margen * 1000) / 10).replace(".", ",");
   f.horas.value = "";
   f.mins.value = "";
-  $("#notas").value = "";
-  $("#notas-cuenta").textContent = "0/280";
   $("#manual").hidden = a.laminado;
 
   $("#filamentos").replaceChildren(...a.filamentos.map((fil) => {
@@ -268,7 +271,6 @@ function leerDatos() {
     gramos: {},
     desglose: $("#desglose-pdf").checked,
     complejidad: $("#aplicar-complejidad").checked,
-    notas: $("#notas").value,
   };
   for (const fil of a.filamentos) {
     const p = leer(f[`eur_kg_${fil.id}`]);
@@ -312,6 +314,8 @@ async function actualizar() {
       body: JSON.stringify(datos), signal: control.signal,
     })).json();
     pintarPrecio(r);
+    estado.tiempo = { horas: r.horas, minutos: datos.minutos };
+    pintarTiempo();
     const html = await (await api("/api/vista-previa", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(datos), signal: control.signal,
@@ -347,6 +351,27 @@ function pintarPrecio(r) {
   requestAnimationFrame(ajustarRellenos);
 }
 
+function tinta(nodo) {
+  const [r, g, b] = getComputedStyle(nodo).backgroundColor.match(/\d+/g).map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  const luz = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return 1.05 / (luz + 0.05) >= (luz + 0.05) / 0.0638 ? "#fff" : "#1B2433";
+}
+
+function resaltable(grafico, nodo, clave) {
+  const marcar = (si) => {
+    grafico.classList.toggle("resaltado", si);
+    grafico.querySelectorAll(`[data-clave="${clave}"]`).forEach((n) => n.classList.toggle("activo", si));
+  };
+  for (const [ev, si] of [["mouseenter", true], ["mouseleave", false], ["focus", true], ["blur", false]]) {
+    nodo.addEventListener(ev, () => marcar(si));
+  }
+  nodo.dataset.clave = clave;
+  return nodo;
+}
+
 function pintarReparto(partes) {
   const grafico = $("#reparto"), suma = partes.reduce((s, p) => s + p.importe, 0) || 1;
   let acumulado = 0;
@@ -355,20 +380,9 @@ function pintarReparto(partes) {
     acumulado += p.importe;
     return { ...p, inicio, fin: acumulado / suma, cuota: `${Math.round((p.importe / suma) * 100)} %` };
   });
-  const enlazar = (nodo, clave) => {
-    const marcar = (si) => {
-      grafico.classList.toggle("resaltado", si);
-      grafico.querySelectorAll(`[data-clave="${clave}"]`).forEach((n) => n.classList.toggle("activo", si));
-    };
-    for (const [ev, si] of [["mouseenter", true], ["mouseleave", false], ["focus", true], ["blur", false]]) {
-      nodo.addEventListener(ev, () => marcar(si));
-    }
-    nodo.dataset.clave = clave;
-    return nodo;
-  };
   grafico.querySelector(".reparto-barra").replaceChildren(...filas.map((p, i) => {
-    const s = enlazar(el("div", { className: "segmento", tabIndex: 0,
-      title: `${p.nombre}: ${euros.format(p.importe)} (${p.cuota})` }), p.clave);
+    const s = resaltable(grafico, el("div", { className: "segmento", tabIndex: 0,
+      title: `${p.nombre}: ${euros.format(p.importe)} (${p.cuota})` }, el("span", { textContent: p.cuota })), p.clave);
     s.setAttribute("aria-label", s.title);
     s.style.setProperty("--c", `var(--serie-${SERIES[p.clave]})`);
     s.style.top = `calc(${p.inicio * 100}% + ${i ? 1 : 0}px)`;
@@ -376,22 +390,83 @@ function pintarReparto(partes) {
     return s;
   }));
   grafico.querySelector(".reparto-etiquetas").replaceChildren(...filas.map((p) => {
-    const e = enlazar(el("div", { className: "reparto-etiqueta", title: `${p.nombre}: ${euros.format(p.importe)}` },
-      [el("span", { textContent: p.nombre }), el("b", { textContent: p.cuota })]), p.clave);
+    const e = resaltable(grafico, el("div", { className: "reparto-etiqueta", title: `${p.nombre}: ${p.cuota}` },
+      [el("i"), el("span", { textContent: p.nombre }), el("b", { textContent: euros.format(p.importe) })]), p.clave);
+    e.style.setProperty("--c", `var(--serie-${SERIES[p.clave]})`);
     e.dataset.centro = (p.inicio + p.fin) / 2;
     return e;
   }));
-  grafico.setAttribute("aria-label", `Reparto del precio: ${filas.map((p) => `${p.nombre} ${p.cuota}`).join(", ")}`);
+  grafico.setAttribute("aria-label",
+    `Reparto del precio: ${filas.map((p) => `${p.nombre} ${euros.format(p.importe)} (${p.cuota})`).join(", ")}`);
   colocarEtiquetas();
 }
 
 function colocarEtiquetas() {
-  const grafico = $("#reparto"), alto = grafico.clientHeight, minimo = 20;
+  const grafico = $("#reparto"), alto = grafico.clientHeight, minimo = 22;
   const etiquetas = [...grafico.querySelectorAll(".reparto-etiqueta")];
-  const y = etiquetas.map((e) => Number(e.dataset.centro) * alto);
+  const centros = etiquetas.map((e) => Number(e.dataset.centro) * alto), y = [...centros];
   for (let i = 0; i < y.length; i++) y[i] = Math.max(y[i], i ? y[i - 1] + minimo : minimo / 2);
   for (let i = y.length - 1; i >= 0; i--) y[i] = Math.min(y[i], i < y.length - 1 ? y[i + 1] - minimo : alto - minimo / 2);
   etiquetas.forEach((e, i) => (e.style.top = `${y[i]}px`));
+  for (const s of grafico.querySelectorAll(".segmento")) {
+    s.style.setProperty("--tinta", tinta(s));
+    s.firstChild.hidden = s.clientHeight < 20;
+  }
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "reparto-conectores");
+  svg.setAttribute("aria-hidden", "true");
+  etiquetas.forEach((e, i) => {
+    const linea = document.createElementNS(svg.namespaceURI, "path");
+    linea.setAttribute("d", `M0 ${centros[i]} C 12 ${centros[i]}, 10 ${y[i]}, 22 ${y[i]}`);
+    linea.setAttribute("class", "conector");
+    linea.dataset.clave = e.dataset.clave;
+    svg.append(linea);
+  });
+  grafico.querySelector(".reparto-conectores")?.remove();
+  grafico.append(svg);
+}
+
+function pintarTiempo() {
+  if (!estado.tiempo) return;
+  const { horas, minutos } = estado.tiempo, impresion = horas * 60, total = impresion + minutos;
+  const ahora = Date.now(), fin = new Date(ahora + total * 60000), hoy = new Date();
+  const reloj = (t) => new Date(t).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+  const dia = fin.toDateString() === hoy.toDateString() ? "hoy"
+    : fin.toDateString() === new Date(hoy.getTime() + 86400000).toDateString() ? "mañana"
+    : fin.toLocaleDateString("es-ES", { weekday: "long" });
+  $("#tiempo-fin").replaceChildren(`Lista ${dia} a las ${reloj(fin)}`, el("small", { textContent: "si la lanzas ahora" }));
+  const tramos = [["Impresión", impresion, 1], ["Acabado", minutos, 2]].filter(([, m]) => m > 0);
+  const barra = $("#tiempo-barra");
+  barra.replaceChildren(...tramos.map(([nombre, m, serie]) => {
+    const t = el("div", { className: "tiempo-tramo", textContent: duracion(m / 60), title: `${nombre}: ${duracion(m / 60)}` });
+    t.style.setProperty("--c", `var(--serie-${serie})`);
+    t.style.setProperty("--peso", m);
+    return t;
+  }));
+  barra.setAttribute("aria-label", tramos.map(([n, m]) => `${n} ${duracion(m / 60)}`).join(", "));
+  const marca = (clase, texto, hora, posicion) => {
+    const m = el("span", { className: clase }, [texto, el("b", { textContent: hora })]);
+    if (posicion !== undefined) m.style.left = `${posicion * 100}%`;
+    return m;
+  };
+  const corte = total ? impresion / total : 1, finImpresion = reloj(ahora + impresion * 60000);
+  const medio = minutos > 0 && corte > 0.25 && corte < 0.8;
+  $("#tiempo-marcas").replaceChildren(
+    marca("", "Ahora", reloj(ahora)),
+    ...(medio ? [marca("medio", "Acaba de imprimir", finImpresion, corte)] : []),
+    marca("final", !minutos ? "Acaba" : medio ? "Lista" : `Imprime hasta ${finImpresion} · lista`, reloj(fin)),
+  );
+  $("#tiempo-leyenda").replaceChildren(...tramos.map(([nombre, , serie]) => {
+    const i = el("i");
+    i.style.setProperty("--c", `var(--serie-${serie})`);
+    return el("span", {}, [i, nombre]);
+  }));
+  requestAnimationFrame(() => {
+    for (const t of barra.children) {
+      t.style.setProperty("--tinta", tinta(t));
+      t.classList.toggle("sin-texto", t.scrollWidth > t.clientWidth);
+    }
+  });
 }
 
 function ajustarRellenos() {
@@ -431,10 +506,6 @@ function pintarComplejidad(r) {
     return li;
   }) : [el("li", {}, [el("span", { className: "pastilla", textContent: "0 %" }),
       el("span", {}, [el("b", { textContent: "Pieza estándar" }), el("small", { textContent: "sin ajuste" })])])]));
-  $("#complejidad-importe").textContent = !r.aplicado ? "No se aplica: el precio no incluye este ajuste."
-    : r.ajuste > 0 ? `Suma ${euros.format(r.ajuste)} al coste de material y máquina.`
-    : r.ajuste < 0 ? `Resta ${euros.format(-r.ajuste)} al coste de material y máquina.`
-    : "No cambia el precio.";
 }
 
 function contador(nodo, desde, hasta) {
@@ -577,10 +648,8 @@ function iniciar() {
   $("#desglose-pdf").addEventListener("change", programar);
   $("#exportar").addEventListener("click", exportar);
   $("#aplicar-complejidad").addEventListener("change", programar);
-  $("#notas").addEventListener("input", (e) => {
-    $("#notas-cuenta").textContent = `${e.target.value.length}/280`;
-    programar();
-  });
+  setInterval(pintarTiempo, 60000);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { colocarEtiquetas(); pintarTiempo(); });
   new ResizeObserver(() => ajustarRellenos()).observe($("#resultado"));
   for (const b of document.querySelectorAll(".pestana")) b.addEventListener("click", () => cambiarVista(b.dataset.vista));
 

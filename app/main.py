@@ -29,7 +29,6 @@ class Datos(BaseModel):
     gramos: dict[int, float] = {}
     desglose: bool = True
     complejidad: bool = True
-    notas: str = Field(default="", max_length=280)
 
 
 class Pagado(BaseModel):
@@ -72,8 +71,7 @@ def crear_app(config=BASE / "config.toml", db=None):
 
         def con_numero(numero):
             nombre = re.sub(r'[\\/:*?"<>|]+', "_", f"{c['emisor']['titulo_documento']}_{numero}_{base_nombre}")
-            ctx = documento.contexto(c, p, placas, d, datos.cliente, numero, datos.desglose, base_nombre, nombre,
-                                     datos.notas)
+            ctx = documento.contexto(c, p, placas, d, datos.cliente, numero, datos.desglose, base_nombre, nombre)
             return nombre, generar(ctx, nombre, c)
 
         _, numero, (nombre, resultado) = core.registrar(db, datos.cliente or "—", p.meta.get("Title") or base_nombre,
@@ -138,7 +136,7 @@ def crear_app(config=BASE / "config.toml", db=None):
                             "nombre_color": core.nombre_color(f.color), "gramos": gramos.get(f.id, 0.0),
                             "eur_kg": f.eur_kg} for f in p.filamentos.values()],
             "imagen": base64.b64encode(p.imagen).decode() if p.imagen else None,
-            "avisos": p.avisos,
+            "avisos": [{"tipo": t, "corto": c, "texto": x} for t, c, x in p.avisos],
         }
 
     @app.post("/api/calcular")
@@ -160,7 +158,7 @@ def crear_app(config=BASE / "config.toml", db=None):
         p, c, placas, d = construir(datos)
         fichero = Path(p.meta.get("_fichero", "modelo.3mf")).stem
         return documento.html(documento.contexto(c, p, placas, d, datos.cliente, core.siguiente_numero(db),
-                                                 datos.desglose, fichero, notas=datos.notas))
+                                                 datos.desglose, fichero))
 
     @app.post("/api/exportar")
     def exportar(datos: Datos):

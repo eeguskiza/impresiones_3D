@@ -29,7 +29,7 @@ precio_kwh = 0.12
 tasa_fallo = 0.08
 mano_obra_eur_h = 21.0
 minutos_por_defecto = 0
-margen = 0.0
+margen = 0.05
 redondeo_eur = 0.5
 
 # Ajuste sobre material y máquina según la complejidad de la pieza (0.03 = 3 %)

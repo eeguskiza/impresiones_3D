@@ -32,9 +32,6 @@ def test_exportar_numera_y_vista_previa_no(cliente, ejemplo):
     for _ in range(2):
         r = cliente.post("/api/vista-previa", json=datos)
         assert r.status_code == 200 and "14,50 €" in r.text
-    r = cliente.post("/api/vista-previa", json={**datos, "notas": "Recogida en Bilbao"})
-    assert "Recogida en Bilbao" in r.text
-    assert cliente.post("/api/vista-previa", json={**datos, "notas": "x" * 281}).status_code == 422
     assert cliente.get("/api/historial").json() == []
 
     numeros = []
