@@ -313,6 +313,15 @@ def presupuestar(proyecto, cfg, minutos, margen=None, eur_kg=None, segundos=None
     return placas, replace(d, ajuste_pct=pct, nivel=nivel, motivos=motivos)
 
 
+def reparto(d):
+    directo = d.material + d.maquina
+    rebaja = min(d.ajuste, 0) / directo if directo else 0
+    partes = [("material", "Material", d.material * (1 + rebaja)), ("maquina", "Máquina y luz", d.maquina * (1 + rebaja)),
+              ("complejidad", "Complejidad", max(d.ajuste, 0)), ("tiempo", "Tu tiempo", d.mano_obra),
+              ("margen", "Margen y redondeo", d.precio - d.coste)]
+    return [(clave, nombre, importe) for clave, nombre, importe in partes if importe > 0.005]
+
+
 def serializar(proyecto):
     d = asdict(proyecto)
     d["imagen"] = base64.b64encode(proyecto.imagen).decode() if proyecto.imagen else None

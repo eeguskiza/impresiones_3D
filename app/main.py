@@ -29,6 +29,7 @@ class Datos(BaseModel):
     gramos: dict[int, float] = {}
     desglose: bool = True
     complejidad: bool = True
+    notas: str = Field(default="", max_length=280)
 
 
 class Pagado(BaseModel):
@@ -71,7 +72,8 @@ def crear_app(config=BASE / "config.toml", db=None):
 
         def con_numero(numero):
             nombre = re.sub(r'[\\/:*?"<>|]+', "_", f"{c['emisor']['titulo_documento']}_{numero}_{base_nombre}")
-            ctx = documento.contexto(c, p, placas, d, datos.cliente, numero, datos.desglose, base_nombre, nombre)
+            ctx = documento.contexto(c, p, placas, d, datos.cliente, numero, datos.desglose, base_nombre, nombre,
+                                     datos.notas)
             return nombre, generar(ctx, nombre, c)
 
         _, numero, (nombre, resultado) = core.registrar(db, datos.cliente or "—", p.meta.get("Title") or base_nombre,
@@ -148,6 +150,7 @@ def crear_app(config=BASE / "config.toml", db=None):
             "coste": d.coste, "precio": d.precio, "margen_redondeo": d.precio - d.coste,
             "ajuste": d.ajuste, "ajuste_pct": d.ajuste_pct, "nivel": d.nivel, "aplicado": datos.complejidad,
             "motivos": [{"titulo": t, "detalle": x, "pct": v} for t, x, v in d.motivos],
+            "reparto": [{"clave": k, "nombre": n, "importe": v} for k, n, v in core.reparto(d)],
             "gramos": sum(f.gramos for f in fils),
             "filamentos": [{"id": f.id, "gramos": f.gramos, "coste": f.gramos * f.eur_kg / 1000} for f in fils],
         }
@@ -157,7 +160,7 @@ def crear_app(config=BASE / "config.toml", db=None):
         p, c, placas, d = construir(datos)
         fichero = Path(p.meta.get("_fichero", "modelo.3mf")).stem
         return documento.html(documento.contexto(c, p, placas, d, datos.cliente, core.siguiente_numero(db),
-                                                 datos.desglose, fichero))
+                                                 datos.desglose, fichero, notas=datos.notas))
 
     @app.post("/api/exportar")
     def exportar(datos: Datos):

@@ -86,3 +86,13 @@ def test_config_local_y_entorno(tmp_path, monkeypatch):
     monkeypatch.setenv("EMISOR_BIZUM", "600111222")
     c = core.cargar_config(tmp_path / "config.toml")
     assert c["emisor"] == {"nombre": "Local", "bizum": "600111222"} and c["marca"]["nombre"] == "M"
+
+
+def test_reparto_suma_el_precio(ejemplo, cfg):
+    cfg = {**cfg, "complejidad": {"un_color": -0.05}}
+    p = core.leer_3mf(ejemplo, cfg)
+    for gramos in (MANUAL["gramos"], {2: 128.5}):
+        _, d = core.presupuestar(p, cfg, 15, segundos=MANUAL["segundos"], gramos=gramos)
+        partes = core.reparto(d)
+        assert sum(v for _, _, v in partes) == pytest.approx(d.precio)
+        assert all(v > 0 for _, _, v in partes)

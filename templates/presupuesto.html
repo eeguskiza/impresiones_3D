@@ -71,6 +71,8 @@ td { padding: 0; vertical-align: top; }
 .total { width: 66mm; height: 30mm; background: {{ marca.color_acento }}; border-radius: 4mm; padding: 6mm; color: #fff; }
 .total-etq { font-weight: 500; font-size: 8pt; letter-spacing: 2pt; }
 .total-valor { font-weight: 700; font-size: 26pt; text-align: right; margin-top: 1mm; line-height: 1.2; }
+.notas { margin-top: 5mm; padding: 3mm 4mm; border-left: 0.8mm solid {{ marca.color_acento }}; background: #F3F4F7; border-radius: 0 2mm 2mm 0; font-size: 8.5pt; white-space: pre-line; }
+.notas .etiqueta { display: block; margin-bottom: 1mm; }
 .pie { position: absolute; left: 20mm; right: 20mm; bottom: 15mm; border-top: 0.6pt solid #E3E6EB; padding-top: 6mm; }
 .pie td { vertical-align: top; }
 .bizum { font-weight: 500; font-size: 10pt; }
@@ -169,6 +171,7 @@ td { padding: 0; vertical-align: top; }
         <div class="total-valor">{{ total }}</div>
       </div></td>
     </tr></table>
+    {% if notas %}<div class="notas"><span class="etiqueta">Notas</span>{{ notas }}</div>{% endif %}
   </div>
 
   <div class="pie">

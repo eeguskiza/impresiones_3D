@@ -53,7 +53,6 @@
         <ul id="avisos" class="avisos entra" style="--i:1"></ul>
 
         <form id="formulario" class="tarjeta entra" style="--i:2" autocomplete="off" novalidate>
-          <h2>Datos del presupuesto</h2>
           <div class="campos principales">
             <label class="campo">Cliente<input name="cliente" placeholder="Nombre del cliente"></label>
             <label class="campo">Preparación<span class="con-unidad"><input name="minutos" inputmode="decimal"><i>min</i></span></label>
@@ -69,27 +68,45 @@
           <h3>Filamentos</h3>
           <div id="filamentos" class="filamentos"></div>
         </form>
+
+        <section class="tarjeta notas relleno entra" data-minimo="90" style="--i:3">
+          <div class="notas-cabecera">
+            <label for="notas" class="etiqueta">Notas para el cliente</label>
+            <span id="notas-cuenta" class="notas-cuenta">0/280</span>
+          </div>
+          <textarea id="notas" maxlength="280" placeholder="Salen en el PDF. Por ejemplo: incluye pintar los ojos a mano."></textarea>
+        </section>
       </div>
 
       <aside class="columna lateral">
-        <section class="tarjeta precio entra" style="--i:3" aria-live="polite">
-          <div class="etiqueta">Total</div>
-          <div id="total" class="total">—</div>
-          <p id="precio-mensaje" class="precio-mensaje" hidden></p>
-          <dl id="desglose" class="desglose"></dl>
-        </section>
-        <section class="tarjeta complejidad entra" style="--i:4">
-          <div class="complejidad-cabecera">
-            <div class="etiqueta">Complejidad</div>
-            <label class="casilla"><input id="aplicar-complejidad" type="checkbox" checked><span class="interruptor"></span>Aplicar</label>
-          </div>
-          <div class="complejidad-valor"><span id="complejidad-nivel">—</span><span id="complejidad-pct" class="pct"></span></div>
-          <div class="medidor"><span id="medidor-marca" class="medidor-marca"></span></div>
-          <div class="medidor-extremos"><span>Sencilla</span><span>Compleja</span></div>
-          <ul id="motivos" class="motivos"></ul>
-          <p id="complejidad-importe" class="complejidad-importe"></p>
-        </section>
-        <section class="tarjeta previa entra" style="--i:5">
+        <div class="centro">
+          <section class="tarjeta precio entra" style="--i:3" aria-live="polite">
+            <div class="etiqueta">Total</div>
+            <div id="total" class="total">—</div>
+            <p id="resumen" class="resumen"></p>
+            <p id="precio-mensaje" class="precio-mensaje" hidden></p>
+            <dl id="desglose" class="desglose"></dl>
+          </section>
+          <section class="tarjeta complejidad entra" style="--i:4">
+            <div class="complejidad-cabecera">
+              <div class="etiqueta">Complejidad</div>
+              <label class="casilla"><input id="aplicar-complejidad" type="checkbox" checked><span class="interruptor"></span>Aplicar</label>
+            </div>
+            <div class="complejidad-valor"><span id="complejidad-nivel">—</span><span id="complejidad-pct" class="pct"></span></div>
+            <div class="medidor"><span id="medidor-marca" class="medidor-marca"></span></div>
+            <div class="medidor-extremos"><span>Sencilla</span><span>Compleja</span></div>
+            <ul id="motivos" class="motivos"></ul>
+            <p id="complejidad-importe" class="complejidad-importe"></p>
+          </section>
+          <section class="tarjeta reparto relleno entra" data-minimo="150" style="--i:5">
+            <div class="etiqueta">Reparto del precio</div>
+            <div id="reparto" class="reparto-grafico" role="img" aria-label="Reparto del precio">
+              <div class="reparto-barra"></div>
+              <div class="reparto-etiquetas"></div>
+            </div>
+          </section>
+        </div>
+        <section class="tarjeta previa entra" style="--i:6">
           <div class="previa-cabecera">
             <h2>Vista previa</h2>
             <label class="casilla"><input id="desglose-pdf" type="checkbox" checked><span class="interruptor"></span>Desglose</label>

@@ -8,6 +8,7 @@ const DEBOUNCE = 250;
 const MAX_SUBIDA = 100 * 1024 * 1024;
 const NECESARIOS = /^(\[Content_Types\]\.xml|3D\/3dmodel\.model|Metadata\/(project_settings\.config|slice_info\.config|plate_\d+\.png)|Auxiliaries\/\.thumbnails\/thumbnail_middle\.png)$/;
 const MALLAS = /^3D\/.+\.model$/;
+const SERIES = { material: 1, maquina: 2, complejidad: 3, tiempo: 4, margen: 5 };
 
 const estado = { config: null, analisis: null, total: 0, temporizador: 0, peticion: null, valido: false };
 
@@ -215,6 +216,8 @@ function mostrar(a) {
   f.margen.value = String(Math.round(estado.config.margen * 1000) / 10).replace(".", ",");
   f.horas.value = "";
   f.mins.value = "";
+  $("#notas").value = "";
+  $("#notas-cuenta").textContent = "0/280";
   $("#manual").hidden = a.laminado;
 
   $("#filamentos").replaceChildren(...a.filamentos.map((fil) => {
@@ -242,6 +245,7 @@ function mostrar(a) {
   $("#desglose").replaceChildren();
   $("#previa").srcdoc = "";
   $("#resultado").hidden = false;
+  requestAnimationFrame(ajustarRellenos);
   actualizar();
 }
 
@@ -264,6 +268,7 @@ function leerDatos() {
     gramos: {},
     desglose: $("#desglose-pdf").checked,
     complejidad: $("#aplicar-complejidad").checked,
+    notas: $("#notas").value,
   };
   for (const fil of a.filamentos) {
     const p = leer(f[`eur_kg_${fil.id}`]);
@@ -326,9 +331,9 @@ function pintarPrecio(r) {
   $("#precio-mensaje").hidden = true;
   contador($("#total"), estado.total, r.precio);
   estado.total = r.precio;
+  $("#resumen").textContent = `${duracion(r.horas)} · ${gramos.format(r.gramos)} g`;
   const filas = [
-    ["Tiempo", duracion(r.horas)], ["Peso", `${gramos.format(r.gramos)} g`],
-    ["Material", euros.format(r.material), true], ["Máquina, energía y fallos", euros.format(r.maquina)],
+    ["Material", euros.format(r.material)], ["Máquina, energía y fallos", euros.format(r.maquina)],
     ...(r.ajuste ? [[`Complejidad (${porcentaje(r.ajuste_pct)})`, euros.format(r.ajuste)]] : []),
     ["Preparación y acabado", euros.format(r.mano_obra)], ["Coste", euros.format(r.coste), true],
     ["Margen y redondeo", euros.format(r.margen_redondeo)],
@@ -338,6 +343,72 @@ function pintarPrecio(r) {
     return [el("dt", { className: c, textContent: k }), el("dd", { className: c, textContent: v })];
   }));
   pintarComplejidad(r);
+  pintarReparto(r.reparto);
+  requestAnimationFrame(ajustarRellenos);
+}
+
+function pintarReparto(partes) {
+  const grafico = $("#reparto"), suma = partes.reduce((s, p) => s + p.importe, 0) || 1;
+  let acumulado = 0;
+  const filas = partes.map((p) => {
+    const inicio = acumulado / suma;
+    acumulado += p.importe;
+    return { ...p, inicio, fin: acumulado / suma, cuota: `${Math.round((p.importe / suma) * 100)} %` };
+  });
+  const enlazar = (nodo, clave) => {
+    const marcar = (si) => {
+      grafico.classList.toggle("resaltado", si);
+      grafico.querySelectorAll(`[data-clave="${clave}"]`).forEach((n) => n.classList.toggle("activo", si));
+    };
+    for (const [ev, si] of [["mouseenter", true], ["mouseleave", false], ["focus", true], ["blur", false]]) {
+      nodo.addEventListener(ev, () => marcar(si));
+    }
+    nodo.dataset.clave = clave;
+    return nodo;
+  };
+  grafico.querySelector(".reparto-barra").replaceChildren(...filas.map((p, i) => {
+    const s = enlazar(el("div", { className: "segmento", tabIndex: 0,
+      title: `${p.nombre}: ${euros.format(p.importe)} (${p.cuota})` }), p.clave);
+    s.setAttribute("aria-label", s.title);
+    s.style.setProperty("--c", `var(--serie-${SERIES[p.clave]})`);
+    s.style.top = `calc(${p.inicio * 100}% + ${i ? 1 : 0}px)`;
+    s.style.height = `calc(${(p.fin - p.inicio) * 100}% - ${(i ? 1 : 0) + (i < filas.length - 1 ? 1 : 0)}px)`;
+    return s;
+  }));
+  grafico.querySelector(".reparto-etiquetas").replaceChildren(...filas.map((p) => {
+    const e = enlazar(el("div", { className: "reparto-etiqueta", title: `${p.nombre}: ${euros.format(p.importe)}` },
+      [el("span", { textContent: p.nombre }), el("b", { textContent: p.cuota })]), p.clave);
+    e.dataset.centro = (p.inicio + p.fin) / 2;
+    return e;
+  }));
+  grafico.setAttribute("aria-label", `Reparto del precio: ${filas.map((p) => `${p.nombre} ${p.cuota}`).join(", ")}`);
+  colocarEtiquetas();
+}
+
+function colocarEtiquetas() {
+  const grafico = $("#reparto"), alto = grafico.clientHeight, minimo = 20;
+  const etiquetas = [...grafico.querySelectorAll(".reparto-etiqueta")];
+  const y = etiquetas.map((e) => Number(e.dataset.centro) * alto);
+  for (let i = 0; i < y.length; i++) y[i] = Math.max(y[i], i ? y[i - 1] + minimo : minimo / 2);
+  for (let i = y.length - 1; i >= 0; i--) y[i] = Math.min(y[i], i < y.length - 1 ? y[i + 1] - minimo : alto - minimo / 2);
+  etiquetas.forEach((e, i) => (e.style.top = `${y[i]}px`));
+}
+
+function ajustarRellenos() {
+  for (const relleno of document.querySelectorAll("#resultado .relleno")) {
+    const columna = relleno.parentElement, previo = relleno.previousElementSibling, estilo = getComputedStyle(columna);
+    previo.classList.remove("estira");
+    relleno.classList.remove("sin-sitio");
+    if (estilo.display !== "flex") continue;
+    const hueco = parseFloat(estilo.rowGap) || 0;
+    const ocupado = [...columna.children].filter((c) => c !== relleno && c.offsetParent)
+      .reduce((s, c) => s + c.offsetHeight + hueco, 0);
+    const libre = columna.clientHeight - parseFloat(estilo.paddingTop) - parseFloat(estilo.paddingBottom) - ocupado;
+    const cabe = libre >= Number(relleno.dataset.minimo);
+    relleno.classList.toggle("sin-sitio", !cabe);
+    previo.classList.toggle("estira", !cabe);
+  }
+  colocarEtiquetas();
 }
 
 function porcentaje(x) {
@@ -506,6 +577,11 @@ function iniciar() {
   $("#desglose-pdf").addEventListener("change", programar);
   $("#exportar").addEventListener("click", exportar);
   $("#aplicar-complejidad").addEventListener("change", programar);
+  $("#notas").addEventListener("input", (e) => {
+    $("#notas-cuenta").textContent = `${e.target.value.length}/280`;
+    programar();
+  });
+  new ResizeObserver(() => ajustarRellenos()).observe($("#resultado"));
   for (const b of document.querySelectorAll(".pestana")) b.addEventListener("click", () => cambiarVista(b.dataset.vista));
 
   const marco = $("#marco"), previa = $("#previa");
