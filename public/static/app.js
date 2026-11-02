@@ -332,6 +332,8 @@ function pintarPedido() {
     ...(estado.analisis ? [{ p: estado.actual, actual: true, quitar: () => { estado.analisis = estado.actual = null; } }] : []),
   ];
   $("#pedido-cuenta").textContent = `${lista.length} ${lista.length === 1 ? "pieza" : "piezas"}`;
+  $("#anadir-pieza").disabled = lista.length >= 20;
+  $("#anadir-pieza").title = lista.length >= 20 ? "Un pedido admite hasta 20 piezas" : "";
   $("#pedido-lista").replaceChildren(...lista.map(({ p, actual, quitar }) => {
     const a = estado.analisis, titulo = p?.titulo ?? a.titulo, imagen = p?.imagen ?? a.imagen;
     const boton = el("button", { type: "button", className: "pedido-quitar", textContent: "×", title: "Quitar del pedido" });

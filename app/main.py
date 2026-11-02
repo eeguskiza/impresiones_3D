@@ -50,11 +50,13 @@ class Pieza(BaseModel):
     material: float
     maquina: float
     ajuste: float
+    ajuste_pct: float = 0.0
+    motivos: list[str] = []
     filamentos: list[FilamentoPieza]
 
 
 class Combo(BaseModel):
-    piezas: list[Pieza] = Field(default=[], max_length=50)
+    piezas: list[Pieza] = Field(default=[], max_length=19)
     actual: PiezaDatos | None = None
     cliente: str = ""
     minutos: float = Field(ge=0)
@@ -105,7 +107,8 @@ def pieza_json(p, placas, d):
         "fichero": p.meta.get("_fichero", "modelo.3mf"),
         "imagen": base64.b64encode(core.miniatura(imagen)).decode() if imagen else None,
         "horas": d.horas, "gramos": sum(f.gramos for f in fils),
-        "material": d.material, "maquina": d.maquina, "ajuste": d.ajuste,
+        "material": d.material, "maquina": d.maquina, "ajuste": d.ajuste, "ajuste_pct": d.ajuste_pct,
+        "motivos": [m[0] for m in d.motivos],
         "filamentos": [{"perfil": f.perfil, "color": f.color, "gramos": f.gramos, "eur_kg": f.eur_kg} for f in fils],
     }
 
@@ -145,7 +148,7 @@ def crear_app(config=BASE / "config.toml", db=None):
 
     def contexto_unico(datos, p, c, placas, d, numero, titulo_pagina=""):
         return documento.contexto(c, p, placas, d, datos.cliente, numero, datos.desglose,
-                                  nombre_base(p.meta.get("_fichero", "modelo.3mf")), titulo_pagina)
+                                  nombre_base(p.meta.get("_fichero", "modelo.3mf")), titulo_pagina, datos.margen)
 
     def documento_final(c, d, cliente, modelo, fichero, gramos, base_nombre, crear_ctx, generar):
         def con_numero(numero):
@@ -167,7 +170,8 @@ def crear_app(config=BASE / "config.toml", db=None):
         c, piezas, _, _, d = construir_combo(combo)
         return documento_final(c, d, combo.cliente, "Combo: " + ", ".join(p["titulo"] for p in piezas)[:200],
                                f"{len(piezas)} piezas", sum(p["gramos"] for p in piezas), "combo",
-                               lambda n, t: documento.contexto_combo(c, piezas, d, combo.cliente, n, combo.desglose, t),
+                               lambda n, t: documento.contexto_combo(c, piezas, d, combo.cliente, n, combo.desglose, t,
+                                                                     combo.margen),
                                generar)
 
     def generar_pdf(ctx, nombre, c):
@@ -281,7 +285,8 @@ def crear_app(config=BASE / "config.toml", db=None):
     @app.post("/api/combo/calcular")
     def calcular_combo(combo: Combo, vista: bool = False):
         c, piezas, actual, d_actual, d = construir_combo(combo)
-        ctx = documento.contexto_combo(c, piezas, d, combo.cliente, core.siguiente_numero(db), combo.desglose) if vista else None
+        ctx = documento.contexto_combo(c, piezas, d, combo.cliente, core.siguiente_numero(db), combo.desglose,
+                                       margen=combo.margen) if vista else None
         fils = [{"perfil": f["perfil"], "color": f["color"], "gramos": f["gramos"], "coste": f["coste"]}
                 for f in core.agregar_combo(piezas)]
         return {

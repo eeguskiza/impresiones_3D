@@ -51,28 +51,21 @@ td { padding: 0; vertical-align: top; }
 .bloque-valor { font-weight: 700; font-size: 20pt; margin-top: 1mm; }
 .circulos { margin-top: 2.5mm; }
 .circulo { display: inline-block; width: 7.2mm; height: 7.2mm; border-radius: 50%; border: 0.8pt solid #E3E6EB; margin-right: 2.3mm; }
-.filamentos { margin-top: 10mm; }
-.piezas { margin-top: 7mm; }
-.piezas + .filamentos { margin-top: 5mm; }
-.filamentos th { text-align: left; padding: 0 0 3mm; font-weight: 500; }
-.filamentos th.num, .filamentos td.num { text-align: right; }
-.filamentos td { padding: 1.8mm 0; vertical-align: middle; }
-.filamentos td:first-child { padding-left: 4mm; }
-.filamentos td:last-child, .filamentos th:last-child { padding-right: 4mm; }
-.filamentos tr.par td { background: #F3F4F7; }
-.filamentos tr.par td:first-child { border-radius: 2mm 0 0 2mm; }
-.filamentos tr.par td:last-child { border-radius: 0 2mm 2mm 0; }
-.punto { display: inline-block; width: 4.6mm; height: 4.6mm; border-radius: 50%; border: 0.8pt solid #E3E6EB; vertical-align: middle; margin-right: 2mm; }
-.totales { margin-top: 6mm; }
-.totales td.izq { padding-right: 12mm; }
-.linea td { padding: 0.9mm 0; font-size: 9pt; }
-.linea td.etq { color: #6B7280; }
-.linea td.val { text-align: right; font-weight: 500; }
-.nota { color: #6B7280; font-size: 9pt; }
-.nota-ajuste { color: #6B7280; font-size: 7.5pt; margin-top: 1.5mm; }
-.total { width: 66mm; height: 30mm; background: {{ marca.color_acento }}; border-radius: 4mm; padding: 6mm; color: #fff; }
-.total-etq { font-weight: 500; font-size: 8pt; letter-spacing: 2pt; }
-.total-valor { font-weight: 700; font-size: 26pt; text-align: right; margin-top: 1mm; line-height: 1.2; }
+.caja-conceptos { margin-top: 8mm; border: 0.6pt solid #E3E6EB; border-radius: 3mm; overflow: hidden; }
+.conceptos th { text-align: left; padding: 3mm 4mm 2mm; font-weight: 500; background: #F3F4F7; }
+.conceptos th.num, .conceptos td.num { text-align: right; }
+.conceptos { line-height: 1.3; }
+.conceptos td { padding: 1.7mm 4mm; vertical-align: middle; border-top: 0.6pt solid #EEF0F3; }
+.conceptos td.detalle { color: #6B7280; font-size: 8pt; }
+.conceptos.compacta td { padding-top: 0.9mm; padding-bottom: 0.9mm; font-size: 8.5pt; }
+.conceptos td.num { font-weight: 500; white-space: nowrap; }
+.conceptos tr.grupo td { font-weight: 500; background: #FAFAFC; border-top: 0.6pt solid #E3E6EB; }
+.conceptos tr.grupo td + td { color: #6B7280; font-weight: 400; font-size: 8pt; }
+.conceptos tr.comun.primera td { border-top: 0.8pt solid #D0D5DD; }
+.conceptos .fila-total td { background: {{ marca.color_acento }}; color: #fff; border-top: 0; padding-top: 3mm; padding-bottom: 3mm; font-weight: 700; font-size: 11pt; letter-spacing: 0.5pt; }
+.conceptos .fila-total td.detalle { color: rgb(255 255 255 / 80%); font-weight: 400; font-size: 8pt; letter-spacing: 0; }
+.conceptos .fila-total td.num { font-size: 18pt; letter-spacing: 0; }
+.punto { display: inline-block; width: 3.6mm; height: 3.6mm; border-radius: 50%; border: 0.8pt solid #E3E6EB; vertical-align: -0.6mm; margin-right: 2mm; }
 .pie { position: absolute; left: 20mm; right: 20mm; bottom: 15mm; border-top: 0.6pt solid #E3E6EB; padding-top: 6mm; }
 .pie td { vertical-align: top; }
 .bizum { font-weight: 500; font-size: 10pt; }
@@ -116,6 +109,7 @@ td { padding: 0; vertical-align: top; }
       </div></td>
     </tr></table>
 
+    {% if alto_hero %}
     <table class="hero"><tr>
       <td class="imagen"><div class="caja-imagen"><table><tr><td>
         {% for img in imagenes %}<img src="{{ img }}" alt="">{% endfor %}
@@ -131,61 +125,45 @@ td { padding: 0; vertical-align: top; }
         </div>
         <div class="bloque ultimo">
           <div class="etiqueta">Colores</div>
-          <div class="circulos">{% for f in filamentos[:8] %}<span class="circulo" style="background: {{ f.color }}"></span>{% endfor %}</div>
+          <div class="circulos">{% for c in colores %}<span class="circulo" style="background: {{ c }}"></span>{% endfor %}</div>
         </div>
       </td>
     </tr></table>
-
-    {% if piezas %}
-    <table class="filamentos piezas">
-      <thead><tr>
-        <th class="etiqueta" style="padding-left: 4mm">Pieza</th>
-        <th class="etiqueta num">Tiempo</th>
-        <th class="etiqueta num" style="width: 32mm">Gramos</th>
-      </tr></thead>
-      <tbody>
-      {% for p in piezas %}
-        <tr class="{{ 'par' if loop.index0 is even }}"><td>{{ p.titulo }}</td><td class="num">{{ p.tiempo }}</td><td class="num">{{ p.gramos }}</td></tr>
-      {% endfor %}
-      </tbody>
-    </table>
     {% endif %}
 
-    <table class="filamentos">
-      <thead><tr>
-        <th class="etiqueta" style="padding-left: 4mm; width: 34mm">Color</th>
-        <th class="etiqueta">Filamento</th>
-        <th class="etiqueta num">Gramos</th>
-        <th class="etiqueta num" style="width: 32mm">Material</th>
-      </tr></thead>
-      <tbody>
-      {% for f in filamentos %}
-        <tr class="{{ 'par' if loop.index0 is even }}">
-          <td><span class="punto" style="background: {{ f.color }}"></span>{{ f.nombre_color }}</td>
-          <td>{{ f.perfil }}</td>
-          <td class="num">{{ f.gramos }}</td>
-          <td class="num">{{ f.coste }}</td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-
-    <table class="totales"><tr>
-      <td class="izq">
-        {% if mostrar_desglose %}
-        <table>
-          {% for etq, val in desglose %}<tr class="linea"><td class="etq">{{ etq }}</td><td class="val">{{ val }}</td></tr>{% endfor %}
-        </table>
-        {% if nota_ajuste %}<div class="nota-ajuste">Complejidad: {{ nota_ajuste }}</div>{% endif %}
-        {% else %}
-        <div class="nota">Incluye material, uso de máquina y preparación.</div>
-        {% endif %}
-      </td>
-      <td style="width: 66mm"><div class="total">
-        <div class="total-etq">TOTAL</div>
-        <div class="total-valor">{{ total }}</div>
-      </div></td>
-    </tr></table>
+    <div class="caja-conceptos">
+      <table class="conceptos{{ ' compacta' if compacta }}">
+        <thead><tr>
+          <th class="etiqueta" style="width: 52mm">Concepto</th>
+          <th class="etiqueta">Detalle</th>
+          <th class="etiqueta num" style="width: 26mm">Importe</th>
+        </tr></thead>
+        <tbody>
+        {% for g in grupos %}
+          {% if g.titulo %}<tr class="grupo"><td>{{ g.titulo }}</td><td colspan="2">{{ g.detalle }}</td></tr>{% endif %}
+          {% for l in g.lineas %}
+          <tr>
+            <td>{% if l.color %}<span class="punto" style="background: {{ l.color }}"></span>{% endif %}{{ l.concepto }}</td>
+            <td class="detalle">{{ l.detalle }}</td>
+            <td class="num">{{ l.importe }}</td>
+          </tr>
+          {% endfor %}
+        {% endfor %}
+        {% for l in comunes %}
+          <tr class="{{ 'comun primera' if loop.first else 'comun' }}">
+            <td>{{ l.concepto }}</td>
+            <td class="detalle">{{ l.detalle }}</td>
+            <td class="num">{{ l.importe }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot><tr class="fila-total">
+          <td>Total</td>
+          <td></td>
+          <td class="num">{{ total }}</td>
+        </tr></tfoot>
+      </table>
+    </div>
   </div>
 
   <div class="pie">

@@ -100,3 +100,17 @@ def test_combo(cliente, laminado):
     r = cliente.post("/api/combo/exportar", json=solo_guardadas)
     assert r.status_code == 200 and r.content.startswith(b"%PDF") and r.headers["X-Numero"].endswith("-0001")
     assert cliente.get("/api/historial").json()[0]["modelo"].startswith("Combo: Urban Spiderman")
+
+
+def test_conceptos_suman_el_total(cliente, ejemplo):
+    from app import core, documento
+    tok = analizar(cliente, ejemplo)["proyecto"]
+    act = lambda g, t: {"proyecto": tok, "tiempo_min": t, "gramos": g}
+    p1 = cliente.post("/api/combo/calcular", json={**DATOS, "actual": act({"1": 12, "2": 85.5, "3": 31}, 320)}).json()["actual"]
+    p2 = cliente.post("/api/combo/calcular", json={**DATOS, "actual": act({"2": 40}, 120)}).json()["actual"]
+    cfg = core.cargar_config(documento.BASE / "config.toml")
+    for piezas in ([p1, p2, p1], [p1, p2] * 4, [p1] * 9):
+        d = core.calcular_combo(piezas, cfg, 15, 0.05)
+        ctx = documento.contexto_combo(cfg, piezas, d, "Ana", "2026-0001", True, margen=0.05)
+        lineas = [l for g in ctx["grupos"] for l in g["lineas"]] + ctx["comunes"]
+        assert round(sum(round(l["valor"], 2) for l in lineas), 2) == d.precio
