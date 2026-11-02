@@ -307,7 +307,7 @@ async function actualizar() {
   const control = (estado.peticion = new AbortController());
   $("#marco").classList.add("cargando");
   try {
-    const r = await (await api("/api/calcular", {
+    const r = await (await api("/api/calcular?vista=true", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(datos), signal: control.signal,
     })).json();
@@ -315,12 +315,8 @@ async function actualizar() {
     const primera = !estado.tiempo;
     estado.tiempo = { horas: r.horas, minutos: datos.minutos };
     pintarTiempo(primera);
-    const html = await (await api("/api/vista-previa", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(datos), signal: control.signal,
-    })).text();
     if (control.signal.aborted) return;
-    $("#previa").srcdoc = html;
+    $("#previa").srcdoc = r.html;
     estado.valido = true;
     $("#exportar").disabled = false;
   } catch (e) {

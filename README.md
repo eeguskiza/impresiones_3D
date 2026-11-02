@@ -42,8 +42,14 @@ Los tests de lectura usan `ejemplos/Spiderman_urban.3mf`, que no está en el rep
 Diferencias con local:
 
 - Vercel no tiene las librerías de WeasyPrint, así que «Exportar PDF» registra el número y abre el diálogo de impresión con el mismo documento de la vista previa: elige **Guardar como PDF** (en Chrome/Edge el nombre del fichero ya viene puesto).
-- El `.3mf` se aligera en el navegador antes de subirlo (solo viajan los ajustes, las imágenes de las placas y si la pieza está pintada), porque Vercel limita las peticiones a 4,5 MB.
 - Sin `DATABASE_URL` funciona, pero el historial se pierde en cada despliegue.
+- CSS, JS y fuentes salen de la CDN de Vercel (`public/`); la página principal y la API pasan por la función, así que `APP_CLAVE` las protege.
+
+### Qué pasa con el fichero
+
+1. El navegador lee el `.3mf` (laminado o no) y extrae solo lo necesario: ajustes del proyecto, datos del laminado, imágenes de las placas y si la pieza está pintada. Las mallas y el G-code no se suben (Vercel limita las peticiones a 4,5 MB).
+2. El servidor lo procesa en memoria, devuelve un resumen ligero (unos 45 KB) y lo descarta al terminar la petición: no se guarda en disco ni en ninguna base de datos.
+3. Ese resumen viaja con cada cálculo; al cargar otro fichero o cerrar la pestaña desaparece. En la base de datos solo queda el registro del presupuesto exportado (número, cliente, modelo, horas, gramos y precio).
 
 ## Estructura
 
@@ -52,10 +58,11 @@ app/core.py          lectura del 3MF, filamentos, complejidad, cálculo, histori
 app/documento.py     contexto de la plantilla, HTML y PDF (WeasyPrint)
 app/main.py          API FastAPI (sin estado: el análisis viaja con cada petición)
 app/__main__.py      arranque local de uvicorn y apertura del navegador
+app/index.html       página de la interfaz
 api/index.py         entrada para Vercel
 templates/           presupuesto.html: plantilla única para vista previa y PDF
-static/              interfaz (index.html, app.css, app.js)
-fonts/               Poppins (OFL)
+public/static/       interfaz (app.css, app.js)
+public/fonts/        Poppins (OFL)
 tests/               pytest
 ```
 
@@ -74,6 +81,6 @@ bizum = "600000000"
 - `[app]`: `puerto`, `nivel_log` y `carpeta_salida` (solo local).
 - `[maquina]`, `[energia]`, `[produccion]`: costes, tu hora, margen y redondeo.
 - `[complejidad]`: ajuste sobre material y máquina según la pieza (un color, colores extra, pintada a color, soportes, impresión larga) con sus límites.
-- `[filamentos_eur_kg]`: precio por perfil exacto (`"Bambu PLA Matte @BBL X2D" = 24.99`) o por tipo (`PLA = 20`). Si falta, se usa el de Bambu Studio; se puede ajustar en la interfaz.
+- `[filamentos_eur_kg]`: precio por perfil, con o sin impresora (`"Bambu PLA Matte" = 23.57` o `"Bambu PLA Matte @BBL X2D" = 24.99`), o por tipo (`PLA = 20`). Si falta, se usa el de Bambu Studio; se puede ajustar en la interfaz. Vienen cargados PLA Basic, PLA Matte, PLA Silk+ y PETG Translucent con precios genéricos de la tienda EU de Bambu Lab.
 
 La interfaz avisa mientras quede algún `[REEMPLAZAR]`.

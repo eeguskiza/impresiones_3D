@@ -95,3 +95,9 @@ def test_reparto_suma_el_precio(ejemplo, cfg):
         partes = core.reparto(d)
         assert sum(v for _, _, v in partes) == pytest.approx(d.precio)
         assert all(v > 0 for _, _, v in partes)
+
+
+def test_precio_por_perfil_sin_impresora(ejemplo, cfg):
+    cfg = {**cfg, "filamentos_eur_kg": {"Bambu PLA Matte": 30.0, "PLA": 20.0}}
+    fils = core.leer_3mf(ejemplo, cfg).filamentos
+    assert [f.eur_kg for f in fils.values()] == [30.0, 20.0, 30.0]

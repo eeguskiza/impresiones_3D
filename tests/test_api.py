@@ -69,3 +69,11 @@ def test_clave_de_acceso(tmp_path, monkeypatch):
     assert c.get("/api/config").status_code == 401
     assert c.get("/api/config", auth=("yo", "mala")).status_code == 401
     assert c.get("/api/config", auth=("yo", "secreta")).status_code == 200
+
+
+def test_calcular_con_vista(cliente, ejemplo):
+    datos = {**DATOS, "proyecto": analizar(cliente, ejemplo)["proyecto"]}
+    assert "html" not in cliente.post("/api/calcular", json=datos).json()
+    r = cliente.post("/api/calcular?vista=true", json=datos).json()
+    assert r["precio"] == 14.50 and "14,50 €" in r["html"]
+    assert cliente.get("/api/historial").json() == []

@@ -68,4 +68,4 @@ def pdf_disponible():
 
 def pdf(ctx):
     from weasyprint import HTML
-    return HTML(string=html(ctx, BASE.as_uri() + "/"), base_url=str(BASE)).write_pdf()
+    return HTML(string=html(ctx, (BASE / "public").as_uri() + "/"), base_url=str(BASE)).write_pdf()

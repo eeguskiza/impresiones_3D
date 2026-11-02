@@ -153,7 +153,7 @@ def filamentos_proyecto(ajustes, cfg):
         tipo = campo("filament_type", i, "?")
         perfil = campo("filament_settings_id", i, tipo)
         coste = campo("filament_cost", i, None)
-        eur_kg = precios.get(perfil, precios.get(tipo, float(coste) if coste else None))
+        eur_kg = precios.get(perfil, precios.get(perfil_corto(perfil), precios.get(tipo, float(coste) if coste else None)))
         res[i + 1] = Filamento(i + 1, tipo, perfil, color, 0.0, None if eur_kg is None else float(eur_kg))
     return res
 

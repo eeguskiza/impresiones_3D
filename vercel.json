@@ -1,10 +1,18 @@
 {
   "framework": null,
+  "outputDirectory": "public",
   "functions": {
     "api/index.py": {
-      "includeFiles": "{config.toml,app/**,static/**,templates/**,fonts/**}",
+      "includeFiles": "{config.toml,app/**,templates/**,public/**}",
       "maxDuration": 30
     }
   },
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
+  "rewrites": [
+    { "source": "/", "destination": "/api/index" },
+    { "source": "/api/(.*)", "destination": "/api/index" }
+  ],
+  "headers": [
+    { "source": "/fonts/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
+    { "source": "/static/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=300, must-revalidate" }] }
+  ]
 }

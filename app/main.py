@@ -80,8 +80,8 @@ def crear_app(config=BASE / "config.toml", db=None):
         return numero, nombre, resultado
 
     app = FastAPI(title="Presupuesto 3D")
-    app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
-    app.mount("/fonts", StaticFiles(directory=BASE / "fonts"), name="fonts")
+    app.mount("/static", StaticFiles(directory=BASE / "public" / "static"), name="static")
+    app.mount("/fonts", StaticFiles(directory=BASE / "public" / "fonts"), name="fonts")
 
     @app.middleware("http")
     async def acceso(request: Request, siguiente):
@@ -97,7 +97,7 @@ def crear_app(config=BASE / "config.toml", db=None):
 
     @app.get("/", include_in_schema=False)
     def inicio():
-        return FileResponse(BASE / "static" / "index.html")
+        return FileResponse(BASE / "app" / "index.html")
 
     @app.get("/api/config")
     def configuracion():
@@ -139,11 +139,17 @@ def crear_app(config=BASE / "config.toml", db=None):
             "avisos": [{"tipo": t, "corto": c, "texto": x} for t, c, x in p.avisos],
         }
 
+    def vista_html(datos, p, c, placas, d):
+        fichero = Path(p.meta.get("_fichero", "modelo.3mf")).stem
+        return documento.html(documento.contexto(c, p, placas, d, datos.cliente, core.siguiente_numero(db),
+                                                 datos.desglose, fichero))
+
     @app.post("/api/calcular")
-    def calcular(datos: Datos):
-        _, _, placas, d = construir(datos)
+    def calcular(datos: Datos, vista: bool = False):
+        p, c, placas, d = construir(datos)
         fils = core.agregar(placas)
         return {
+            **({"html": vista_html(datos, p, c, placas, d)} if vista else {}),
             "horas": d.horas, "material": d.material, "maquina": d.maquina, "mano_obra": d.mano_obra,
             "coste": d.coste, "precio": d.precio, "margen_redondeo": d.precio - d.coste,
             "ajuste": d.ajuste, "ajuste_pct": d.ajuste_pct, "nivel": d.nivel, "aplicado": datos.complejidad,
@@ -155,10 +161,7 @@ def crear_app(config=BASE / "config.toml", db=None):
 
     @app.post("/api/vista-previa", response_class=HTMLResponse)
     def vista_previa(datos: Datos):
-        p, c, placas, d = construir(datos)
-        fichero = Path(p.meta.get("_fichero", "modelo.3mf")).stem
-        return documento.html(documento.contexto(c, p, placas, d, datos.cliente, core.siguiente_numero(db),
-                                                 datos.desglose, fichero))
+        return vista_html(datos, *construir(datos))
 
     @app.post("/api/exportar")
     def exportar(datos: Datos):
