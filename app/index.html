@@ -39,19 +39,39 @@
     </div>
 
     <div id="resultado" class="rejilla" hidden>
+      <section class="cifras" aria-live="polite">
+        <article class="tarjeta cifra cifra-total entra" style="--i:0">
+          <div class="etiqueta">Total</div>
+          <div id="total" class="total">—</div>
+          <p id="precio-mensaje" class="precio-mensaje" hidden></p>
+          <p id="total-detalle" class="cifra-detalle"></p>
+        </article>
+        <article class="tarjeta cifra entra" style="--i:1">
+          <div class="etiqueta">Impresión</div>
+          <div id="cifra-horas" class="cifra-valor">—</div>
+          <p id="cifra-horas-detalle" class="cifra-detalle"></p>
+        </article>
+        <article class="tarjeta cifra entra" style="--i:2">
+          <div class="etiqueta">Filamento</div>
+          <div id="cifra-gramos" class="cifra-valor">—</div>
+          <p id="cifra-colores" class="cifra-detalle colores"></p>
+        </article>
+      </section>
+
       <div class="columna">
-        <article class="tarjeta pieza entra" style="--i:0">
+        <article class="tarjeta pieza entra" style="--i:3">
           <div class="pieza-imagen"><img id="pieza-img" alt=""></div>
           <div class="pieza-info">
-            <h1 id="pieza-titulo"></h1>
+            <div class="pieza-titulo">
+              <h1 id="pieza-titulo"></h1>
+              <button id="cambiar" type="button" class="boton-texto">Cambiar fichero</button>
+            </div>
             <p id="pieza-detalle" class="tenue"></p>
             <div id="pieza-chips" class="chips"></div>
-            <button id="cambiar" type="button" class="boton-texto">Cambiar fichero</button>
           </div>
         </article>
 
-
-        <form id="formulario" class="tarjeta entra" style="--i:2" autocomplete="off" novalidate>
+        <form id="formulario" class="tarjeta entra" style="--i:4" autocomplete="off" novalidate>
           <div class="campos principales">
             <label class="campo">Cliente<input name="cliente" placeholder="Nombre del cliente"></label>
             <label class="campo">Preparación<span class="con-unidad"><input name="minutos" inputmode="decimal"><i>min</i></span></label>
@@ -68,28 +88,11 @@
           <div id="filamentos" class="filamentos"></div>
         </form>
 
-        <section class="tarjeta tiempo relleno entra" data-minimo="120" style="--i:3">
-          <svg id="reloj" class="reloj" viewBox="0 0 220 220" role="img"></svg>
-          <div class="tiempo-lado">
-            <div class="tiempo-cabecera">
-              <span class="etiqueta">Tiempo</span>
-              <label class="hora-inicio">La lanzo a las <input id="hora-inicio" type="time"></label>
-            </div>
-            <dl id="tiempo-datos" class="tiempo-datos"></dl>
-          </div>
-        </section>
       </div>
 
       <aside class="columna lateral">
         <div class="centro">
-          <section class="tarjeta precio entra" style="--i:3" aria-live="polite">
-            <div class="etiqueta">Total</div>
-            <div id="total" class="total">—</div>
-            <p id="resumen" class="resumen"></p>
-            <p id="precio-mensaje" class="precio-mensaje" hidden></p>
-            <dl id="desglose" class="desglose"></dl>
-          </section>
-          <section class="tarjeta complejidad entra" style="--i:4">
+          <section class="tarjeta complejidad entra" style="--i:5">
             <div class="complejidad-cabecera">
               <div class="etiqueta">Complejidad</div>
               <label class="casilla"><input id="aplicar-complejidad" type="checkbox" checked><span class="interruptor"></span>Aplicar</label>
@@ -99,7 +102,7 @@
             <div class="medidor-extremos"><span>Sencilla</span><span>Compleja</span></div>
             <ul id="motivos" class="motivos"></ul>
           </section>
-          <section class="tarjeta reparto relleno entra" data-minimo="150" style="--i:5">
+          <section class="tarjeta reparto relleno entra" data-minimo="150" style="--i:6">
             <div class="etiqueta">Reparto del precio</div>
             <div id="reparto" class="reparto-grafico" role="img" aria-label="Reparto del precio">
               <div class="reparto-barra"></div>
@@ -107,7 +110,7 @@
             </div>
           </section>
         </div>
-        <section class="tarjeta previa entra" style="--i:6">
+        <section class="tarjeta previa entra" style="--i:7">
           <div class="previa-cabecera">
             <h2>Vista previa</h2>
             <label class="casilla"><input id="desglose-pdf" type="checkbox" checked><span class="interruptor"></span>Desglose</label>

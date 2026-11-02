@@ -11,7 +11,8 @@ def test_analizar_y_calcular(cliente, ejemplo):
     a = analizar(cliente, ejemplo)
     assert a["titulo"] == "Urban Spiderman" and not a["laminado"]
     assert a["filamentos"][0] == {"id": 1, "tipo": "PLA", "perfil": "Bambu PLA Matte", "color": "#FFFFFF",
-                                  "nombre_color": "Blanco", "gramos": 0.0, "eur_kg": 24.99}
+                                  "nombre_color": "Blanco", "gramos": 0.0, "eur_kg": 24.99,
+                                  "origen": "bambu"}
     assert a["imagen"]
     r = cliente.post("/api/calcular", json={**DATOS, "proyecto": a["proyecto"]})
     assert r.status_code == 200

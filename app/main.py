@@ -134,7 +134,7 @@ def crear_app(config=BASE / "config.toml", db=None):
             "placas": [{"indice": pl.indice, "segundos": pl.segundos} for pl in p.placas],
             "filamentos": [{"id": f.id, "tipo": f.tipo, "perfil": core.perfil_corto(f.perfil), "color": f.color[:7],
                             "nombre_color": core.nombre_color(f.color), "gramos": gramos.get(f.id, 0.0),
-                            "eur_kg": f.eur_kg} for f in p.filamentos.values()],
+                            "eur_kg": f.eur_kg, "origen": f.origen} for f in p.filamentos.values()],
             "imagen": base64.b64encode(p.imagen).decode() if p.imagen else None,
             "avisos": [{"tipo": t, "corto": c, "texto": x} for t, c, x in p.avisos],
         }

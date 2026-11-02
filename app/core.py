@@ -43,6 +43,7 @@ class Filamento:
     color: str
     gramos: float
     eur_kg: float | None
+    origen: str = ""
 
 
 @dataclass
@@ -153,8 +154,9 @@ def filamentos_proyecto(ajustes, cfg):
         tipo = campo("filament_type", i, "?")
         perfil = campo("filament_settings_id", i, tipo)
         coste = campo("filament_cost", i, None)
-        eur_kg = precios.get(perfil, precios.get(perfil_corto(perfil), precios.get(tipo, float(coste) if coste else None)))
-        res[i + 1] = Filamento(i + 1, tipo, perfil, color, 0.0, None if eur_kg is None else float(eur_kg))
+        origen, eur_kg = next(((o, precios[k]) for o, k in (("lista", perfil), ("lista", perfil_corto(perfil)), ("tipo", tipo))
+                               if k in precios), ("bambu", float(coste)) if coste else ("", None))
+        res[i + 1] = Filamento(i + 1, tipo, perfil, color, 0.0, None if eur_kg is None else float(eur_kg), origen)
     return res
 
 
@@ -210,7 +212,7 @@ def placas_laminadas(z, fils):
             if base is None:
                 raise ErrorPresupuesto(f"El filamento {fid} del laminado no está en el proyecto.")
             usados.append(Filamento(fid, f.get("type") or base.tipo, base.perfil,
-                                    f.get("color") or base.color, float(f.get("used_g", 0)), base.eur_kg))
+                                    f.get("color") or base.color, float(f.get("used_g", 0)), base.eur_kg, base.origen))
         placas.append(Placa(indice, float(m.get("prediction", 0)), usados, imagen_placa(z, indice)))
     return placas
 

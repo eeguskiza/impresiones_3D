@@ -81,6 +81,6 @@ bizum = "600000000"
 - `[app]`: `puerto`, `nivel_log` y `carpeta_salida` (solo local).
 - `[maquina]`, `[energia]`, `[produccion]`: costes, tu hora, margen y redondeo.
 - `[complejidad]`: ajuste sobre material y máquina según la pieza (un color, colores extra, pintada a color, soportes, impresión larga) con sus límites.
-- `[filamentos_eur_kg]`: precio por perfil, con o sin impresora (`"Bambu PLA Matte" = 23.57` o `"Bambu PLA Matte @BBL X2D" = 24.99`), o por tipo (`PLA = 20`). Si falta, se usa el de Bambu Studio; se puede ajustar en la interfaz. Vienen cargados PLA Basic, PLA Matte, PLA Silk+ y PETG Translucent con precios genéricos de la tienda EU de Bambu Lab.
+- `[filamentos_eur_kg]`: precio por perfil, con o sin impresora (`"Bambu PLA Matte" = 23.57` o `"Bambu PLA Matte @BBL X2D" = 24.99`), o por tipo (`PLA = 20`). Si falta, se usa el de Bambu Studio; se puede ajustar en la interfaz. Vienen cargados PLA Basic, PLA Matte, PLA Silk+ y PETG Translucent con precios genéricos de la tienda EU de Bambu Lab. El filamento se detecta del perfil elegido al laminar, y bajo cada uno la interfaz indica de dónde sale su €/kg (tu lista, genérico por tipo o Bambu Studio).
 
 La interfaz avisa mientras quede algún `[REEMPLAZAR]`.
