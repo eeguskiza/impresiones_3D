@@ -11,7 +11,8 @@ const MALLAS = /^3D\/.+\.model$/;
 const ORIGEN = { lista: "tu lista", tipo: "genérico", bambu: "Bambu Studio", "": "sin precio" };
 const SERIES = { material: 1, maquina: 2, complejidad: 3, tiempo: 4, margen: 5 };
 
-const estado = { config: null, analisis: null, total: 0, temporizador: 0, peticion: null, valido: false };
+const estado = { config: null, analisis: null, total: 0, temporizador: 0, peticion: null, valido: false,
+  modo: "unico", piezas: [], actual: null };
 
 function el(etiqueta, props = {}, hijos = []) {
   const n = Object.assign(document.createElement(etiqueta), props);
@@ -177,6 +178,19 @@ async function subir(fichero) {
     return;
   }
   error("");
+  const reemplazar = estado.reemplazar;
+  estado.reemplazar = false;
+  if (estado.modo === "combo" && estado.analisis && !reemplazar) {
+    clearTimeout(estado.temporizador);
+    await actualizar();
+    if (!estado.actual) {
+      error("Completa la pieza actual (tiempo y gramos) antes de cargar la siguiente.");
+      return;
+    }
+    estado.piezas.push(estado.actual);
+    estado.analisis = estado.actual = null;
+  }
+  $("#modos").hidden = true;
   $("#resultado").hidden = true;
   $("#soltar").classList.add("compacto");
   $("#esqueleto").hidden = false;
@@ -191,8 +205,14 @@ async function subir(fichero) {
     mostrar(await r.json());
   } catch (e) {
     error(e.message);
-    $("#soltar").classList.toggle("compacto", Boolean(estado.analisis));
-    if (estado.analisis) $("#resultado").hidden = false;
+    const hayDatos = Boolean(estado.analisis || estado.piezas.length);
+    $("#soltar").classList.toggle("compacto", hayDatos);
+    $("#modos").hidden = hayDatos;
+    $("#resultado").hidden = !hayDatos;
+    if (hayDatos) {
+      verPieza(Boolean(estado.analisis));
+      actualizar();
+    }
   } finally {
     $("#esqueleto").hidden = true;
     $("#entrada").value = "";
@@ -215,8 +235,10 @@ function mostrar(a) {
   );
 
   const f = $("#formulario");
-  f.minutos.value = String(estado.config.minutos).replace(".", ",");
-  f.margen.value = String(Math.round(estado.config.margen * 1000) / 10).replace(".", ",");
+  if (estado.modo === "unico" || !estado.piezas.length) {
+    f.minutos.value = String(estado.config.minutos).replace(".", ",");
+    f.margen.value = String(Math.round(estado.config.margen * 1000) / 10).replace(".", ",");
+  }
   f.horas.value = "";
   f.mins.value = "";
   $("#manual").hidden = a.laminado;
@@ -243,15 +265,14 @@ function mostrar(a) {
     return fila;
   }));
 
-  for (const id of ["#total", "#cifra-horas", "#cifra-gramos"]) $(id).textContent = "—";
-  for (const id of ["#total-detalle", "#cifra-horas-detalle", "#cifra-colores"]) $(id).replaceChildren();
-  $("#previa").srcdoc = "";
+  if (!estado.piezas.length) limpiarTotales();
+  verPieza(true);
   $("#resultado").hidden = false;
   requestAnimationFrame(ajustarRellenos);
   actualizar();
 }
 
-function leerDatos() {
+function leerFormulario() {
   const a = estado.analisis;
   const f = $("#formulario");
   let ok = true;
@@ -261,29 +282,78 @@ function leerDatos() {
     if (Number.isNaN(v)) ok = false;
     return Number.isNaN(v) ? null : v;
   };
-  const datos = {
-    proyecto: a.proyecto,
+  const cliente = {
     cliente: f.cliente.value.trim(),
     minutos: leer(f.minutos) ?? 0,
     margen: (leer(f.margen) ?? 0) / 100,
-    eur_kg: {},
-    gramos: {},
     desglose: $("#desglose-pdf").checked,
-    complejidad: $("#aplicar-complejidad").checked,
   };
-  for (const fil of a.filamentos) {
-    const p = leer(f[`eur_kg_${fil.id}`]);
-    if (p != null) datos.eur_kg[fil.id] = p;
+  let pieza = null;
+  if (a) {
+    pieza = { proyecto: a.proyecto, eur_kg: {}, gramos: {}, complejidad: $("#aplicar-complejidad").checked };
+    for (const fil of a.filamentos) {
+      const p = leer(f[`eur_kg_${fil.id}`]);
+      if (p != null) pieza.eur_kg[fil.id] = p;
+      if (!a.laminado) {
+        const g = leer(f[`gramos_${fil.id}`]);
+        if (g != null) pieza.gramos[fil.id] = g;
+      }
+    }
     if (!a.laminado) {
-      const g = leer(f[`gramos_${fil.id}`]);
-      if (g != null) datos.gramos[fil.id] = g;
+      const h = leer(f.horas), m = leer(f.mins);
+      pieza.tiempo_min = h == null && m == null ? null : (h ?? 0) * 60 + (m ?? 0);
     }
   }
-  if (!a.laminado) {
-    const h = leer(f.horas), m = leer(f.mins);
-    datos.tiempo_min = h == null && m == null ? null : (h ?? 0) * 60 + (m ?? 0);
-  }
-  return ok ? datos : null;
+  if (!ok) return null;
+  return estado.modo === "combo"
+    ? { combo: true, cuerpo: { ...cliente, piezas: estado.piezas, actual: pieza }, minutos: cliente.minutos }
+    : { combo: false, cuerpo: { ...pieza, ...cliente }, minutos: cliente.minutos };
+}
+
+function verPieza(si) {
+  const combo = estado.modo === "combo";
+  for (const n of [$(".pieza"), $("#tarjeta-filamentos"), $(".complejidad")]) n.hidden = !si;
+  $("#siguiente").hidden = si || !combo;
+  $("#pedido").hidden = !combo;
+  $("#etiqueta-total").textContent = combo ? "Total del pedido" : "Total";
+  requestAnimationFrame(ajustarRellenos);
+}
+
+function limpiarTotales() {
+  for (const id of ["#total", "#cifra-horas", "#cifra-gramos"]) $(id).textContent = "—";
+  for (const id of ["#total-detalle", "#cifra-horas-detalle", "#cifra-colores"]) $(id).replaceChildren();
+  $("#previa").srcdoc = "";
+  estado.total = 0;
+}
+
+function pintarPedido() {
+  const lista = [
+    ...estado.piezas.map((p, i) => ({ p, quitar: () => estado.piezas.splice(i, 1) })),
+    ...(estado.analisis ? [{ p: estado.actual, actual: true, quitar: () => { estado.analisis = estado.actual = null; } }] : []),
+  ];
+  $("#pedido-cuenta").textContent = `${lista.length} ${lista.length === 1 ? "pieza" : "piezas"}`;
+  $("#pedido-lista").replaceChildren(...lista.map(({ p, actual, quitar }) => {
+    const a = estado.analisis, titulo = p?.titulo ?? a.titulo, imagen = p?.imagen ?? a.imagen;
+    const boton = el("button", { type: "button", className: "pedido-quitar", textContent: "×", title: "Quitar del pedido" });
+    boton.setAttribute("aria-label", `Quitar ${titulo} del pedido`);
+    boton.addEventListener("click", () => {
+      quitar();
+      verPieza(Boolean(estado.analisis));
+      if (!estado.analisis && !estado.piezas.length) {
+        limpiarTotales();
+        pendiente("Carga una pieza para empezar el pedido.");
+      }
+      pintarPedido();
+      actualizar();
+    });
+    return el("li", { className: actual ? "actual" : "" }, [
+      el("img", { src: imagen ? `data:image/png;base64,${imagen}` : "", alt: "" }),
+      el("span", {}, [el("b", { textContent: titulo }),
+        el("small", { textContent: p ? `${duracion(p.horas)} · ${gramos.format(p.gramos)} g${actual ? " · en edición" : ""}`
+          : "En edición · faltan datos" })]),
+      boton,
+    ]);
+  }));
 }
 
 function programar() {
@@ -301,25 +371,28 @@ function pendiente(mensaje) {
 }
 
 async function actualizar() {
-  if (!estado.analisis) return;
-  const datos = leerDatos();
-  if (!datos) return pendiente("Hay campos con valores no válidos.");
+  if (!estado.analisis && !(estado.modo === "combo" && estado.piezas.length)) return;
+  const leido = leerFormulario();
+  if (!leido) return pendiente("Hay campos con valores no válidos.");
   estado.peticion?.abort();
   const control = (estado.peticion = new AbortController());
   $("#marco").classList.add("cargando");
   try {
-    const r = await (await api("/api/calcular?vista=true", {
+    const r = await (await api(leido.combo ? "/api/combo/calcular?vista=true" : "/api/calcular?vista=true", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(datos), signal: control.signal,
+      body: JSON.stringify(leido.cuerpo), signal: control.signal,
     })).json();
-    estado.minutos = datos.minutos;
-    pintarPrecio(r);
     if (control.signal.aborted) return;
+    estado.minutos = leido.minutos;
+    estado.actual = leido.combo ? r.actual : null;
+    pintarPrecio(r);
     $("#previa").srcdoc = r.html;
     estado.valido = true;
     $("#exportar").disabled = false;
   } catch (e) {
     if (e.name === "AbortError") return;
+    estado.actual = null;
+    if (estado.modo === "combo") pintarPedido();
     pendiente(e.message);
   }
 }
@@ -334,13 +407,14 @@ function pintarPrecio(r) {
   $("#cifra-horas-detalle").textContent = estado.minutos > 0
     ? `+ ${duracion(estado.minutos / 60)} de acabado` : "Sin acabado";
   $("#cifra-gramos").textContent = `${gramos.format(r.gramos)} g`;
-  const colores = new Map(estado.analisis.filamentos.map((f) => [f.id, f]));
   $("#cifra-colores").replaceChildren(...r.filamentos.map((f) => {
-    const c = colores.get(f.id), punto = el("i", { title: `${c.nombre_color} · ${c.perfil}` });
-    punto.style.background = c.color;
-    return el("span", { title: `${c.nombre_color}: ${gramos.format(f.gramos)} g` }, [punto, `${gramos.format(f.gramos)} g`]);
+    const punto = el("i", { title: `${f.nombre_color} · ${f.perfil}` });
+    punto.style.background = f.color;
+    return el("span", { title: `${f.nombre_color} · ${f.perfil}: ${gramos.format(f.gramos)} g` }, [punto, `${gramos.format(f.gramos)} g`]);
   }));
-  pintarComplejidad(r);
+  const info = estado.modo === "combo" ? r.complejidad : r;
+  if (info) pintarComplejidad(info);
+  if (estado.modo === "combo") pintarPedido();
   pintarReparto(r.reparto);
   requestAnimationFrame(ajustarRellenos);
 }
@@ -479,14 +553,15 @@ function contador(nodo, desde, hasta) {
 }
 
 async function exportar() {
-  const datos = leerDatos();
-  if (!datos || !estado.valido) return;
+  const leido = leerFormulario();
+  if (!leido || !estado.valido) return;
+  const datos = leido.cuerpo, ruta = leido.combo ? "/api/combo" : "/api";
   const b = $("#exportar");
   b.disabled = true;
   b.classList.add("ocupado");
   try {
     if (!estado.config.pdf_servidor) {
-      const r = await (await api("/api/registrar", {
+      const r = await (await api(`${ruta}/registrar`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos),
       })).json();
       await imprimir(r.html, r.nombre);
@@ -494,7 +569,7 @@ async function exportar() {
       actualizar();
       return;
     }
-    const r = await api("/api/exportar", {
+    const r = await api(`${ruta}/exportar`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos),
     });
     const disp = r.headers.get("Content-Disposition") || "";
@@ -567,7 +642,32 @@ async function cargarHistorial() {
   }));
 }
 
+function reiniciar() {
+  clearTimeout(estado.temporizador);
+  estado.peticion?.abort();
+  Object.assign(estado, { analisis: null, actual: null, piezas: [], valido: false });
+  error("");
+  limpiarTotales();
+  $("#resultado").hidden = true;
+  $("#modos").hidden = false;
+  $("#soltar").classList.remove("compacto");
+  $("#exportar").disabled = true;
+}
+
+function elegirModo(modo) {
+  estado.modo = modo;
+  for (const b of document.querySelectorAll(".modo")) {
+    b.classList.toggle("activo", b.dataset.modo === modo);
+    b.setAttribute("aria-checked", b.dataset.modo === modo);
+  }
+}
+
 function cambiarVista(nombre) {
+  if (nombre === "nuevo" && !$("#vista-nuevo").hidden && !$("#resultado").hidden) {
+    if (estado.piezas.length && !confirm("¿Empezar de nuevo? Se perderán las piezas del pedido.")) return;
+    reiniciar();
+    return;
+  }
   for (const b of document.querySelectorAll(".pestana")) {
     const activa = b.dataset.vista === nombre;
     b.classList.toggle("activa", activa);
@@ -589,11 +689,22 @@ function iniciar() {
     e.preventDefault();
     profundidad = 0;
     arrastrar(false);
-    cambiarVista("nuevo");
+    estado.reemplazar = false;
+    if ($("#vista-nuevo").hidden) cambiarVista("nuevo");
     subir(e.dataTransfer.files[0]);
   });
   $("#entrada").addEventListener("change", (e) => subir(e.target.files[0]));
-  $("#cambiar").addEventListener("click", () => $("#entrada").click());
+  $("#cambiar").addEventListener("click", () => {
+    estado.reemplazar = true;
+    $("#entrada").click();
+  });
+  for (const id of ["#siguiente", "#anadir-pieza"]) {
+    $(id).addEventListener("click", () => {
+      estado.reemplazar = false;
+      $("#entrada").click();
+    });
+  }
+  for (const b of document.querySelectorAll(".modo")) b.addEventListener("click", () => elegirModo(b.dataset.modo));
   $("#formulario").addEventListener("input", programar);
   $("#formulario").addEventListener("submit", (e) => e.preventDefault());
   $("#desglose-pdf").addEventListener("change", programar);

@@ -19,16 +19,47 @@ MAX_SUBIDA = 100 * 1024 * 1024
 log = logging.getLogger("presupuesto3d")
 
 
-class Datos(BaseModel):
+class PiezaDatos(BaseModel):
     proyecto: str
-    cliente: str = ""
-    minutos: float = Field(ge=0)
-    margen: float = Field(ge=0)
     eur_kg: dict[int, float] = {}
     tiempo_min: float | None = Field(default=None, ge=0)
     gramos: dict[int, float] = {}
-    desglose: bool = True
     complejidad: bool = True
+
+
+class Datos(PiezaDatos):
+    cliente: str = ""
+    minutos: float = Field(ge=0)
+    margen: float = Field(ge=0)
+    desglose: bool = True
+
+
+class FilamentoPieza(BaseModel):
+    perfil: str
+    color: str
+    gramos: float = Field(ge=0)
+    eur_kg: float = Field(ge=0)
+
+
+class Pieza(BaseModel):
+    titulo: str
+    fichero: str
+    imagen: str | None = None
+    horas: float = Field(ge=0)
+    gramos: float = Field(ge=0)
+    material: float
+    maquina: float
+    ajuste: float
+    filamentos: list[FilamentoPieza]
+
+
+class Combo(BaseModel):
+    piezas: list[Pieza] = Field(default=[], max_length=50)
+    actual: PiezaDatos | None = None
+    cliente: str = ""
+    minutos: float = Field(ge=0)
+    margen: float = Field(ge=0)
+    desglose: bool = True
 
 
 class Pagado(BaseModel):
@@ -45,6 +76,40 @@ def destino_por_defecto():
     return BASE / "registro.db"
 
 
+def nombre_base(fichero):
+    return re.sub(r"\.gcode$", "", Path(fichero).stem, flags=re.I)
+
+
+def totales(d, filamentos):
+    return {
+        "horas": d.horas, "material": d.material, "maquina": d.maquina, "mano_obra": d.mano_obra,
+        "coste": d.coste, "precio": d.precio, "margen_redondeo": d.precio - d.coste, "ajuste": d.ajuste,
+        "reparto": [{"clave": k, "nombre": n, "importe": v} for k, n, v in core.reparto(d)],
+        "gramos": sum(f["gramos"] for f in filamentos),
+        "filamentos": [{"perfil": core.perfil_corto(f["perfil"]), "color": f["color"][:7],
+                        "nombre_color": core.nombre_color(f["color"]), "gramos": f["gramos"], "coste": f["coste"]}
+                       for f in filamentos],
+    }
+
+
+def complejidad(d, aplicado):
+    return {"ajuste_pct": d.ajuste_pct, "nivel": d.nivel, "aplicado": aplicado,
+            "motivos": [{"titulo": t, "detalle": x, "pct": v} for t, x, v in d.motivos]}
+
+
+def pieza_json(p, placas, d):
+    imagen = next((pl.imagen for pl in placas if pl.imagen), p.imagen)
+    fils = core.agregar(placas)
+    return {
+        "titulo": p.meta.get("Title") or nombre_base(p.meta.get("_fichero", "modelo.3mf")),
+        "fichero": p.meta.get("_fichero", "modelo.3mf"),
+        "imagen": base64.b64encode(core.miniatura(imagen)).decode() if imagen else None,
+        "horas": d.horas, "gramos": sum(f.gramos for f in fils),
+        "material": d.material, "maquina": d.maquina, "ajuste": d.ajuste,
+        "filamentos": [{"perfil": f.perfil, "color": f.color, "gramos": f.gramos, "eur_kg": f.eur_kg} for f in fils],
+    }
+
+
 def crear_app(config=BASE / "config.toml", db=None):
     db = db or destino_por_defecto()
     clave = os.environ.get("APP_CLAVE")
@@ -52,32 +117,80 @@ def crear_app(config=BASE / "config.toml", db=None):
     def cfg():
         return core.cargar_config(config)
 
-    def construir(datos):
+    def construir(datos, minutos=0, margen=None):
         c = cfg()
         segundos = datos.tiempo_min * 60 if datos.tiempo_min is not None else None
         try:
             p = core.deserializar(datos.proyecto)
-            placas, d = core.presupuestar(p, c, datos.minutos, datos.margen, datos.eur_kg,
-                                          segundos, datos.gramos, datos.complejidad)
+            placas, d = core.presupuestar(p, c, minutos, margen, datos.eur_kg, segundos, datos.gramos,
+                                          datos.complejidad)
         except core.ErrorPresupuesto as e:
             raise HTTPException(422, str(e))
         return p, c, placas, d
 
-    def documento_final(datos, generar):
-        p, c, placas, d = construir(datos)
-        fichero = p.meta.get("_fichero", "modelo.3mf")
-        base_nombre = re.sub(r"\.gcode$", "", Path(fichero).stem, flags=re.I)
-        gramos = sum(f.gramos for pl in placas for f in pl.filamentos)
+    def construir_unico(datos):
+        return construir(datos, datos.minutos, datos.margen)
 
+    def construir_combo(combo):
+        c = cfg()
+        piezas, actual, d_actual = [x.model_dump() for x in combo.piezas], None, None
+        if combo.actual:
+            p, _, placas, d_actual = construir(combo.actual)
+            actual = pieza_json(p, placas, d_actual)
+        try:
+            d = core.calcular_combo(piezas + ([actual] if actual else []), c, combo.minutos, combo.margen)
+        except core.ErrorPresupuesto as e:
+            raise HTTPException(422, str(e))
+        return c, piezas + ([actual] if actual else []), actual, d_actual, d
+
+    def contexto_unico(datos, p, c, placas, d, numero, titulo_pagina=""):
+        return documento.contexto(c, p, placas, d, datos.cliente, numero, datos.desglose,
+                                  nombre_base(p.meta.get("_fichero", "modelo.3mf")), titulo_pagina)
+
+    def documento_final(c, d, cliente, modelo, fichero, gramos, base_nombre, crear_ctx, generar):
         def con_numero(numero):
             nombre = re.sub(r'[\\/:*?"<>|]+', "_", f"{c['emisor']['titulo_documento']}_{numero}_{base_nombre}")
-            ctx = documento.contexto(c, p, placas, d, datos.cliente, numero, datos.desglose, base_nombre, nombre)
-            return nombre, generar(ctx, nombre, c)
+            return nombre, generar(crear_ctx(numero, nombre), nombre, c)
 
-        _, numero, (nombre, resultado) = core.registrar(db, datos.cliente or "—", p.meta.get("Title") or base_nombre,
-                                                        fichero, d, gramos, con_numero)
+        _, numero, (nombre, resultado) = core.registrar(db, cliente or "—", modelo, fichero, d, gramos, con_numero)
         log.info("Presupuesto %s: %s", numero, core.eur(d.precio))
         return numero, nombre, resultado
+
+    def final_unico(datos, generar):
+        p, c, placas, d = construir_unico(datos)
+        fichero = p.meta.get("_fichero", "modelo.3mf")
+        return documento_final(c, d, datos.cliente, p.meta.get("Title") or nombre_base(fichero), fichero,
+                               sum(f.gramos for pl in placas for f in pl.filamentos), nombre_base(fichero),
+                               lambda n, t: contexto_unico(datos, p, c, placas, d, n, t), generar)
+
+    def final_combo(combo, generar):
+        c, piezas, _, _, d = construir_combo(combo)
+        return documento_final(c, d, combo.cliente, "Combo: " + ", ".join(p["titulo"] for p in piezas)[:200],
+                               f"{len(piezas)} piezas", sum(p["gramos"] for p in piezas), "combo",
+                               lambda n, t: documento.contexto_combo(c, piezas, d, combo.cliente, n, combo.desglose, t),
+                               generar)
+
+    def generar_pdf(ctx, nombre, c):
+        pdf = documento.pdf(ctx)
+        carpeta = Path(c.get("app", {}).get("carpeta_salida", "presupuestos")).expanduser()
+        ruta = (carpeta if carpeta.is_absolute() else BASE / carpeta) / f"{nombre}.pdf"
+        try:
+            ruta.parent.mkdir(parents=True, exist_ok=True)
+            ruta.write_bytes(pdf)
+        except OSError as e:
+            log.warning("No se pudo guardar %s: %s", ruta, e)
+            ruta = None
+        return pdf, ruta
+
+    def respuesta_pdf(numero, nombre, pdf, ruta):
+        cabeceras = {"Content-Disposition": f"attachment; filename*=UTF-8''{quote(nombre)}.pdf", "X-Numero": numero}
+        if ruta:
+            cabeceras["X-Ruta"] = quote(str(ruta))
+        return Response(pdf, media_type="application/pdf", headers=cabeceras)
+
+    def exigir_pdf():
+        if not documento.pdf_disponible():
+            raise HTTPException(501, "Este servidor no puede generar PDF: registra e imprime desde el navegador.")
 
     app = FastAPI(title="Presupuesto 3D")
     app.mount("/static", StaticFiles(directory=BASE / "public" / "static"), name="static")
@@ -134,61 +247,57 @@ def crear_app(config=BASE / "config.toml", db=None):
             "placas": [{"indice": pl.indice, "segundos": pl.segundos} for pl in p.placas],
             "filamentos": [{"id": f.id, "tipo": f.tipo, "perfil": core.perfil_corto(f.perfil), "color": f.color[:7],
                             "nombre_color": core.nombre_color(f.color), "gramos": gramos.get(f.id, 0.0),
-                            "eur_kg": f.eur_kg, "origen": f.origen} for f in p.filamentos.values()],
+                            "eur_kg": f.eur_kg, "origen": f.origen} for f in p.filamentos.values()
+                           if not p.laminado or gramos.get(f.id, 0) > 0],
             "imagen": base64.b64encode(p.imagen).decode() if p.imagen else None,
             "avisos": [{"tipo": t, "corto": c, "texto": x} for t, c, x in p.avisos],
         }
 
-    def vista_html(datos, p, c, placas, d):
-        fichero = Path(p.meta.get("_fichero", "modelo.3mf")).stem
-        return documento.html(documento.contexto(c, p, placas, d, datos.cliente, core.siguiente_numero(db),
-                                                 datos.desglose, fichero))
-
     @app.post("/api/calcular")
     def calcular(datos: Datos, vista: bool = False):
-        p, c, placas, d = construir(datos)
-        fils = core.agregar(placas)
+        p, c, placas, d = construir_unico(datos)
+        fils = [{"perfil": f.perfil, "color": f.color, "gramos": f.gramos, "coste": f.gramos * f.eur_kg / 1000}
+                for f in core.agregar(placas)]
         return {
-            **({"html": vista_html(datos, p, c, placas, d)} if vista else {}),
-            "horas": d.horas, "material": d.material, "maquina": d.maquina, "mano_obra": d.mano_obra,
-            "coste": d.coste, "precio": d.precio, "margen_redondeo": d.precio - d.coste,
-            "ajuste": d.ajuste, "ajuste_pct": d.ajuste_pct, "nivel": d.nivel, "aplicado": datos.complejidad,
-            "motivos": [{"titulo": t, "detalle": x, "pct": v} for t, x, v in d.motivos],
-            "reparto": [{"clave": k, "nombre": n, "importe": v} for k, n, v in core.reparto(d)],
-            "gramos": sum(f.gramos for f in fils),
-            "filamentos": [{"id": f.id, "gramos": f.gramos, "coste": f.gramos * f.eur_kg / 1000} for f in fils],
+            **({"html": documento.html(contexto_unico(datos, p, c, placas, d, core.siguiente_numero(db)))} if vista else {}),
+            **totales(d, fils), **complejidad(d, datos.complejidad),
         }
 
     @app.post("/api/vista-previa", response_class=HTMLResponse)
     def vista_previa(datos: Datos):
-        return vista_html(datos, *construir(datos))
+        p, c, placas, d = construir_unico(datos)
+        return documento.html(contexto_unico(datos, p, c, placas, d, core.siguiente_numero(db)))
 
     @app.post("/api/exportar")
     def exportar(datos: Datos):
-        if not documento.pdf_disponible():
-            raise HTTPException(501, "Este servidor no puede generar PDF: usa /api/registrar e imprime desde el navegador.")
-
-        def generar(ctx, nombre, c):
-            pdf = documento.pdf(ctx)
-            carpeta = Path(c.get("app", {}).get("carpeta_salida", "presupuestos")).expanduser()
-            ruta = (carpeta if carpeta.is_absolute() else BASE / carpeta) / f"{nombre}.pdf"
-            try:
-                ruta.parent.mkdir(parents=True, exist_ok=True)
-                ruta.write_bytes(pdf)
-            except OSError as e:
-                log.warning("No se pudo guardar %s: %s", ruta, e)
-                ruta = None
-            return pdf, ruta
-
-        numero, nombre, (pdf, ruta) = documento_final(datos, generar)
-        cabeceras = {"Content-Disposition": f"attachment; filename*=UTF-8''{quote(nombre)}.pdf", "X-Numero": numero}
-        if ruta:
-            cabeceras["X-Ruta"] = quote(str(ruta))
-        return Response(pdf, media_type="application/pdf", headers=cabeceras)
+        exigir_pdf()
+        return respuesta_pdf(*_aplanar(final_unico(datos, generar_pdf)))
 
     @app.post("/api/registrar")
     def registrar(datos: Datos):
-        numero, nombre, html = documento_final(datos, lambda ctx, nombre, c: documento.html(ctx))
+        numero, nombre, html = final_unico(datos, lambda ctx, nombre, c: documento.html(ctx))
+        return {"numero": numero, "nombre": nombre, "html": html}
+
+    @app.post("/api/combo/calcular")
+    def calcular_combo(combo: Combo, vista: bool = False):
+        c, piezas, actual, d_actual, d = construir_combo(combo)
+        ctx = documento.contexto_combo(c, piezas, d, combo.cliente, core.siguiente_numero(db), combo.desglose) if vista else None
+        fils = [{"perfil": f["perfil"], "color": f["color"], "gramos": f["gramos"], "coste": f["coste"]}
+                for f in core.agregar_combo(piezas)]
+        return {
+            **({"html": documento.html(ctx)} if vista else {}),
+            **totales(d, fils), "piezas": len(piezas), "actual": actual,
+            "complejidad": complejidad(d_actual, combo.actual.complejidad) if d_actual else None,
+        }
+
+    @app.post("/api/combo/exportar")
+    def exportar_combo(combo: Combo):
+        exigir_pdf()
+        return respuesta_pdf(*_aplanar(final_combo(combo, generar_pdf)))
+
+    @app.post("/api/combo/registrar")
+    def registrar_combo(combo: Combo):
+        numero, nombre, html = final_combo(combo, lambda ctx, nombre, c: documento.html(ctx))
         return {"numero": numero, "nombre": nombre, "html": html}
 
     @app.get("/api/historial")
@@ -202,3 +311,8 @@ def crear_app(config=BASE / "config.toml", db=None):
         return {"id": id_, "pagado": cuerpo.pagado}
 
     return app
+
+
+def _aplanar(resultado):
+    numero, nombre, (pdf, ruta) = resultado
+    return numero, nombre, pdf, ruta

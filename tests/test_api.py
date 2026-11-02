@@ -78,3 +78,25 @@ def test_calcular_con_vista(cliente, ejemplo):
     r = cliente.post("/api/calcular?vista=true", json=datos).json()
     assert r["precio"] == 14.50 and "14,50 €" in r["html"]
     assert cliente.get("/api/historial").json() == []
+
+
+def test_combo(cliente, laminado):
+    actual = {"proyecto": analizar(cliente, laminado, "Spiderman_urban.gcode.3mf")["proyecto"]}
+    pedido = {"cliente": "Ana", "minutos": 15, "margen": 0.10, "actual": actual}
+    r = cliente.post("/api/combo/calcular", json=pedido).json()
+    assert r["precio"] == 14.50 and r["piezas"] == 1 and r["complejidad"]["nivel"] == "Normal"
+    pieza = r["actual"]
+    assert pieza["titulo"] == "Urban Spiderman" and pieza["imagen"] and len(pieza["filamentos"]) == 3
+    assert "proyecto" not in pieza
+
+    r = cliente.post("/api/combo/calcular?vista=true", json={**pedido, "piezas": [pieza]}).json()
+    assert r["piezas"] == 2 and r["precio"] == 24.50 and r["gramos"] == 257.0
+    assert "Pedido de 2 piezas" in r["html"]
+
+    solo_guardadas = {**pedido, "actual": None, "piezas": [pieza, pieza]}
+    assert cliente.post("/api/combo/calcular", json=solo_guardadas).json()["precio"] == 24.50
+    assert cliente.post("/api/combo/calcular", json={**pedido, "actual": None}).status_code == 422
+
+    r = cliente.post("/api/combo/exportar", json=solo_guardadas)
+    assert r.status_code == 200 and r.content.startswith(b"%PDF") and r.headers["X-Numero"].endswith("-0001")
+    assert cliente.get("/api/historial").json()[0]["modelo"].startswith("Combo: Urban Spiderman")

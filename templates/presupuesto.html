@@ -44,7 +44,7 @@ td { padding: 0; vertical-align: top; }
 .caja-imagen { background: #F3F4F7; border-radius: 4mm; height: {{ alto_hero }}mm; text-align: center; padding: 4mm; }
 .caja-imagen table { height: 100%; }
 .caja-imagen td { vertical-align: middle; text-align: center; }
-.caja-imagen img { max-height: {{ alto_hero - 8 }}mm; max-width: {{ (92 - 3 * (imagenes|length - 1)) / (imagenes|length or 1) }}mm; margin: 0 1.5mm; vertical-align: middle; }
+.caja-imagen img { max-height: {{ alto_hero - 8 }}mm; max-width: {{ (92 - 3 * (imagenes|length or 1)) / (imagenes|length or 1) }}mm; margin: 0 1.5mm; vertical-align: middle; }
 .datos { padding-left: 8mm !important; }
 .bloque { height: {{ alto_hero / 3 }}mm; padding-top: 4mm; border-bottom: 0.6pt solid #E3E6EB; }
 .bloque.ultimo { border-bottom: 0; }
@@ -52,6 +52,8 @@ td { padding: 0; vertical-align: top; }
 .circulos { margin-top: 2.5mm; }
 .circulo { display: inline-block; width: 7.2mm; height: 7.2mm; border-radius: 50%; border: 0.8pt solid #E3E6EB; margin-right: 2.3mm; }
 .filamentos { margin-top: 10mm; }
+.piezas { margin-top: 7mm; }
+.piezas + .filamentos { margin-top: 5mm; }
 .filamentos th { text-align: left; padding: 0 0 3mm; font-weight: 500; }
 .filamentos th.num, .filamentos td.num { text-align: right; }
 .filamentos td { padding: 1.8mm 0; vertical-align: middle; }
@@ -133,6 +135,21 @@ td { padding: 0; vertical-align: top; }
         </div>
       </td>
     </tr></table>
+
+    {% if piezas %}
+    <table class="filamentos piezas">
+      <thead><tr>
+        <th class="etiqueta" style="padding-left: 4mm">Pieza</th>
+        <th class="etiqueta num">Tiempo</th>
+        <th class="etiqueta num" style="width: 32mm">Gramos</th>
+      </tr></thead>
+      <tbody>
+      {% for p in piezas %}
+        <tr class="{{ 'par' if loop.index0 is even }}"><td>{{ p.titulo }}</td><td class="num">{{ p.tiempo }}</td><td class="num">{{ p.gramos }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
 
     <table class="filamentos">
       <thead><tr>

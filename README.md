@@ -29,6 +29,15 @@ uv pip install -p .venv -r requirements-dev.txt   # o .venv/bin/pip install -r r
 
 Los tests de lectura usan `ejemplos/Spiderman_urban.3mf`, que no está en el repo por su licencia: si falta, se saltan.
 
+## Presupuesto único o pedido combo
+
+Al empezar eliges el tipo:
+
+- **Presupuesto único**: una pieza, un presupuesto.
+- **Pedido combo**: varias piezas (cada una de su `.3mf`) en un solo presupuesto. Cargas la primera, ajustas sus filamentos y con «Añadir otra pieza» (o arrastrando el siguiente fichero) la pieza se guarda como un JSON ligero con sus datos y su coste, y el fichero se descarta. El total se calcula en el servidor sumando material, máquina y complejidad de todas las piezas y aplicando una sola vez tu tiempo de preparación, el margen y el redondeo. El PDF lista las piezas y agrupa los filamentos.
+
+Pulsar «Nuevo» con un presupuesto abierto vuelve a la pantalla inicial.
+
 ## Vercel
 
 1. En Vercel: **Add New → Project** e importa este repositorio (no hace falta tocar la configuración de build, va en `vercel.json`).

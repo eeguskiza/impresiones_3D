@@ -21,6 +21,15 @@
 
 <main>
   <section id="vista-nuevo" class="vista">
+    <div id="modos" class="modos" role="radiogroup" aria-label="Tipo de presupuesto">
+      <button type="button" class="modo activo" data-modo="unico" role="radio" aria-checked="true">
+        <b>Presupuesto único</b><span>Una pieza, un presupuesto</span>
+      </button>
+      <button type="button" class="modo" data-modo="combo" role="radio" aria-checked="false">
+        <b>Pedido combo</b><span>Varias piezas en un solo presupuesto</span>
+      </button>
+    </div>
+
     <label id="soltar" class="soltar">
       <input id="entrada" type="file" accept=".3mf" hidden>
       <svg class="soltar-icono" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 6 40 15v18L24 42 8 33V15z" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/><path d="M8 15l16 9 16-9M24 24v18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/></svg>
@@ -41,7 +50,7 @@
     <div id="resultado" class="rejilla" hidden>
       <section class="cifras" aria-live="polite">
         <article class="tarjeta cifra cifra-total entra" style="--i:0">
-          <div class="etiqueta">Total</div>
+          <div id="etiqueta-total" class="etiqueta">Total</div>
           <div id="total" class="total">—</div>
           <p id="precio-mensaje" class="precio-mensaje" hidden></p>
           <p id="total-detalle" class="cifra-detalle"></p>
@@ -71,27 +80,48 @@
           </div>
         </article>
 
-        <form id="formulario" class="tarjeta entra" style="--i:4" autocomplete="off" novalidate>
-          <div class="campos principales">
-            <label class="campo">Cliente<input name="cliente" placeholder="Nombre del cliente"></label>
-            <label class="campo">Preparación<span class="con-unidad"><input name="minutos" inputmode="decimal"><i>min</i></span></label>
-            <label class="campo">Margen<span class="con-unidad"><input name="margen" inputmode="decimal"><i>%</i></span></label>
-          </div>
-          <fieldset id="manual" class="manual" hidden>
-            <legend>Tiempo de impresión <small>(de la vista previa de Bambu Studio)</small></legend>
-            <div class="campos">
-              <label class="campo"><span class="con-unidad"><input name="horas" inputmode="numeric" placeholder="0"><i>h</i></span></label>
-              <label class="campo"><span class="con-unidad"><input name="mins" inputmode="numeric" placeholder="0"><i>min</i></span></label>
+        <button id="siguiente" type="button" class="tarjeta siguiente" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span><b>Carga la siguiente pieza</b><small>Arrastra el .3mf aquí o haz clic para elegirlo</small></span>
+        </button>
+
+        <form id="formulario" class="formulario" autocomplete="off" novalidate>
+          <section class="tarjeta entra" style="--i:4">
+            <div class="etiqueta">Cliente</div>
+            <div class="campos principales">
+              <label class="campo">Nombre<input name="cliente" placeholder="Nombre del cliente"></label>
+              <label class="campo">Preparación<span class="con-unidad"><input name="minutos" inputmode="decimal"><i>min</i></span></label>
+              <label class="campo">Margen<span class="con-unidad"><input name="margen" inputmode="decimal"><i>%</i></span></label>
             </div>
-          </fieldset>
-          <h3>Filamentos</h3>
-          <div id="filamentos" class="filamentos"></div>
+          </section>
+          <section id="tarjeta-filamentos" class="tarjeta entra" style="--i:5">
+            <div class="etiqueta">Filamentos</div>
+            <fieldset id="manual" class="manual" hidden>
+              <legend>Tiempo de impresión <small>(de la vista previa de Bambu Studio)</small></legend>
+              <div class="campos">
+                <label class="campo"><span class="con-unidad"><input name="horas" inputmode="numeric" placeholder="0"><i>h</i></span></label>
+                <label class="campo"><span class="con-unidad"><input name="mins" inputmode="numeric" placeholder="0"><i>min</i></span></label>
+              </div>
+            </fieldset>
+            <div id="filamentos" class="filamentos"></div>
+          </section>
         </form>
 
       </div>
 
       <aside class="columna lateral">
         <div class="centro">
+          <section id="pedido" class="tarjeta pedido entra" style="--i:5" hidden>
+            <div class="pedido-cabecera">
+              <span class="etiqueta">Pedido combo</span>
+              <span id="pedido-cuenta" class="pedido-cuenta"></span>
+            </div>
+            <ul id="pedido-lista" class="pedido-lista"></ul>
+            <button id="anadir-pieza" type="button" class="boton secundario ancho">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Añadir otra pieza
+            </button>
+          </section>
           <section class="tarjeta complejidad entra" style="--i:5">
             <div class="complejidad-cabecera">
               <div class="etiqueta">Complejidad</div>

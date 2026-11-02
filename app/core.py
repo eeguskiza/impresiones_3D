@@ -177,6 +177,14 @@ def recortar(datos):
     return salida.getvalue()
 
 
+def miniatura(datos, lado=320):
+    im = Image.open(BytesIO(datos))
+    im.thumbnail((lado, lado))
+    salida = BytesIO()
+    im.save(salida, "PNG", optimize=True)
+    return salida.getvalue()
+
+
 def imagen_placa(z, indice):
     nombres = set(z.namelist())
     for n in (f"Metadata/plate_{indice}.png", "Auxiliaries/.thumbnails/thumbnail_middle.png"):
@@ -286,13 +294,26 @@ def calcular(placas, cfg, minutos, ajuste_pct=0.0):
     uso = horas * (m["potencia_media_w"] / 1000 * e["precio_kwh"]
                    + m["precio_eur"] / m["horas_amortizacion"] + m["mantenimiento_eur_h"])
     directo = (material + uso) / (1 - p["tasa_fallo"])
-    ajuste = directo * ajuste_pct
+    return cerrar(horas, material, directo - material, directo * ajuste_pct, ajuste_pct, cfg, minutos)
+
+
+def cerrar(horas, material, maquina, ajuste, ajuste_pct, cfg, minutos):
+    p = cfg["produccion"]
     mano_obra = minutos / 60 * p["mano_obra_eur_h"]
-    coste = directo + ajuste + mano_obra
+    coste = material + maquina + ajuste + mano_obra
     r = p["redondeo_eur"]
     bruto = coste * (1 + p["margen"])
     precio = math.ceil(bruto / r - 1e-9) * r if r > 0 else round(bruto, 2)
-    return Desglose(horas, material, directo - material, mano_obra, coste, precio, ajuste, ajuste_pct)
+    return Desglose(horas, material, maquina, mano_obra, coste, precio, ajuste, ajuste_pct)
+
+
+def calcular_combo(piezas, cfg, minutos, margen=None):
+    if not piezas:
+        raise ErrorPresupuesto("El pedido no tiene piezas.")
+    if margen is not None:
+        cfg = {**cfg, "produccion": {**cfg["produccion"], "margen": margen}}
+    suma = lambda k: sum(p[k] for p in piezas)
+    return cerrar(suma("horas"), suma("material"), suma("maquina"), suma("ajuste"), 0.0, cfg, minutos)
 
 
 def presupuestar(proyecto, cfg, minutos, margen=None, eur_kg=None, segundos=None, gramos=None, complejidad=True):
@@ -324,6 +345,17 @@ def reparto(d):
               ("complejidad", "Complejidad", max(d.ajuste, 0)), ("tiempo", "Tu tiempo", d.mano_obra),
               ("margen", "Margen y redondeo", d.precio - d.coste)]
     return [(clave, nombre, importe) for clave, nombre, importe in partes if importe > 0.005]
+
+
+def agregar_combo(piezas):
+    filas = {}
+    for p in piezas:
+        for f in p["filamentos"]:
+            a = filas.setdefault((perfil_corto(f["perfil"]), f["color"][:7].upper()),
+                                 {"perfil": f["perfil"], "color": f["color"], "gramos": 0.0, "coste": 0.0})
+            a["gramos"] += f["gramos"]
+            a["coste"] += f["gramos"] * f["eur_kg"] / 1000
+    return list(filas.values())
 
 
 def serializar(proyecto):

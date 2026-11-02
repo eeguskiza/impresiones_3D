@@ -67,6 +67,12 @@ main { max-width: 1280px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px) 6
 .banner.error { background: var(--error-fondo); color: var(--error-texto); }
 .banner code { font-family: inherit; font-weight: 600; }
 
+.modos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; max-width: 760px; width: 100%; margin: 0 auto 16px; }
+.modo { display: grid; gap: 2px; text-align: left; padding: 16px 20px; border: 1px solid var(--vidrio-borde); border-radius: 20px; background: var(--vidrio); -webkit-backdrop-filter: var(--desenfoque); backdrop-filter: var(--desenfoque); box-shadow: var(--sombra); cursor: pointer; transition: box-shadow var(--rapido), transform var(--rapido) var(--curva), border-color var(--rapido); }
+.modo b { font-weight: 600; }
+.modo span { font-size: .85rem; color: var(--tenue); }
+.modo:hover { transform: translateY(-1px); }
+.modo.activo { border-color: var(--acento); box-shadow: var(--sombra), 0 0 0 3px color-mix(in srgb, var(--acento) 22%, transparent); }
 .soltar { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 300px; padding: 40px 24px; text-align: center; border: 2px dashed rgb(16 24 40 / .14); border-radius: 28px; background: var(--vidrio); -webkit-backdrop-filter: var(--desenfoque); backdrop-filter: var(--desenfoque); box-shadow: var(--sombra); cursor: pointer; margin-bottom: 16px; transition: border-color var(--rapido), background var(--rapido), transform var(--medio) var(--curva), box-shadow var(--medio); }
 .soltar:hover, .soltar:focus-within, .soltar.encima { border-color: var(--acento); background: linear-gradient(160deg, rgb(255 255 255 / .9), color-mix(in srgb, var(--acento) 10%, rgb(255 255 255 / .6))); }
 .soltar.encima { transform: scale(1.01); }
@@ -162,6 +168,26 @@ input:focus-visible + .interruptor { box-shadow: 0 0 0 4px color-mix(in srgb, va
 .motivos .pastilla { text-align: center; border-radius: 999px; padding: 1px 0; font-size: .74rem; font-weight: 600; font-variant-numeric: tabular-nums; background: var(--aviso-fondo); color: var(--aviso-texto); }
 .motivos .pastilla.baja { background: color-mix(in srgb, var(--exito) 15%, transparent); color: var(--exito); }
 .centro { display: grid; gap: 16px; min-width: 0; }
+.formulario { display: contents; }
+.formulario > .tarjeta > .etiqueta { display: block; margin-bottom: 10px; }
+.siguiente { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; cursor: pointer; border-style: dashed; border-color: color-mix(in srgb, var(--acento) 45%, var(--linea)); color: var(--texto); font: inherit; transition: transform var(--rapido) var(--curva), border-color var(--rapido); }
+.siguiente:hover { transform: translateY(-1px); border-color: var(--acento); }
+.siguiente svg { flex: none; width: 36px; height: 36px; padding: 8px; border-radius: 50%; color: #fff; background: var(--acento); }
+.siguiente b { display: block; font-weight: 600; }
+.siguiente small { color: var(--tenue); }
+.pedido { display: flex; flex-direction: column; gap: 10px; }
+.pedido-cabecera { display: flex; justify-content: space-between; align-items: baseline; }
+.pedido-cuenta { font-size: .8rem; color: var(--tenue); }
+.pedido-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 210px; overflow-y: auto; scrollbar-width: thin; }
+.pedido-lista li { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 14px; background: rgb(255 255 255 / .5); box-shadow: inset 0 0 0 1px rgb(255 255 255 / .7); animation: entrar 360ms var(--curva) both; }
+.pedido-lista li.actual { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--acento) 55%, transparent); }
+.pedido-lista img { width: 38px; height: 38px; object-fit: contain; border-radius: 10px; background: var(--superficie-2); }
+.pedido-lista b { display: block; font-weight: 500; font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pedido-lista small { color: var(--tenue); font-size: .75rem; }
+.pedido-quitar { width: 26px; height: 26px; border: 0; border-radius: 50%; background: transparent; color: var(--tenue); font-size: 1.1rem; line-height: 1; cursor: pointer; transition: background var(--rapido), color var(--rapido); }
+.pedido-quitar:hover { background: var(--error-fondo); color: var(--error-texto); }
+.boton.secundario { background: rgb(255 255 255 / .7); color: var(--acento); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acento) 40%, transparent); }
+.boton.secundario:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--acento), 0 6px 16px color-mix(in srgb, var(--acento) 18%, transparent); }
 .relleno.sin-sitio { display: none !important; }
 .estira { flex: 1 0 auto; }
 .reparto { display: flex; flex-direction: column; }
@@ -232,7 +258,8 @@ body.arrastrando main { outline: 2px dashed var(--acento); outline-offset: -8px;
   .vista { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .soltar { flex: 1; margin-bottom: 0; }
   .banner.error { flex: none; }
-  .rejilla { flex: 1; min-height: 0; grid-template-rows: auto minmax(0, max-content); align-content: start; align-items: stretch; }
+  .rejilla { flex: 1; min-height: 0; grid-template-rows: auto minmax(0, max-content); align-content: center; align-items: stretch; }
+  .modos { flex: none; }
   .columna { min-height: 0; max-height: 100%; align-content: start; }
   .columna:not(.lateral) { display: flex; flex-direction: column; max-height: none; overflow-y: auto; scrollbar-width: thin; padding: 4px; margin: -4px; }
   #resultado > .columna { grid-row: 2; }
@@ -289,6 +316,7 @@ body.arrastrando main { outline: 2px dashed var(--acento); outline-offset: -8px;
 }
 @media (max-width: 560px) {
   .cifras { grid-template-columns: 1fr 1fr; }
+  .modos { grid-template-columns: minmax(0, 1fr); }
   .cifra-total { grid-column: 1 / -1; }
   .cifra-valor { font-size: 1.45rem; }
   .pieza, .esq-tarjeta { grid-template-columns: 96px 1fr; gap: 14px; }
