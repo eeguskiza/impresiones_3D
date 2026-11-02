@@ -10,7 +10,7 @@ const NECESARIOS = /^(\[Content_Types\]\.xml|3D\/3dmodel\.model|Metadata\/(proje
 const MALLAS = /^3D\/.+\.model$/;
 const SERIES = { material: 1, maquina: 2, complejidad: 3, tiempo: 4, margen: 5 };
 
-const estado = { config: null, analisis: null, total: 0, temporizador: 0, peticion: null, valido: false, tiempo: null };
+const estado = { config: null, analisis: null, total: 0, temporizador: 0, peticion: null, valido: false, tiempo: null, inicioManual: false };
 
 function el(etiqueta, props = {}, hijos = []) {
   const n = Object.assign(document.createElement(etiqueta), props);
@@ -200,10 +200,8 @@ function mostrar(a) {
   estado.analisis = a;
   estado.total = 0;
   estado.tiempo = null;
-  $("#tiempo-fin").textContent = "—";
-  $("#tiempo-barra").replaceChildren();
-  $("#tiempo-leyenda").replaceChildren();
-  $("#tiempo-marcas").replaceChildren();
+  $("#reloj").replaceChildren();
+  $("#tiempo-datos").replaceChildren();
   $("#soltar").classList.add("compacto");
   $("#pieza-img").src = a.imagen ? `data:image/png;base64,${a.imagen}` : "";
   $("#pieza-img").hidden = !a.imagen;
@@ -314,8 +312,9 @@ async function actualizar() {
       body: JSON.stringify(datos), signal: control.signal,
     })).json();
     pintarPrecio(r);
+    const primera = !estado.tiempo;
     estado.tiempo = { horas: r.horas, minutos: datos.minutos };
-    pintarTiempo();
+    pintarTiempo(primera);
     const html = await (await api("/api/vista-previa", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(datos), signal: control.signal,
@@ -426,47 +425,85 @@ function colocarEtiquetas() {
   grafico.append(svg);
 }
 
-function pintarTiempo() {
+function svg(etiqueta, atributos = {}, hijos = []) {
+  const n = document.createElementNS("http://www.w3.org/2000/svg", etiqueta);
+  for (const [k, v] of Object.entries(atributos)) n.setAttribute(k, v);
+  n.append(...[].concat(hijos));
+  return n;
+}
+
+function inicioLanzamiento() {
+  const [h, m] = ($("#hora-inicio").value || "").split(":").map(Number);
+  const inicio = new Date();
+  if (Number.isFinite(h)) inicio.setHours(h, m, 0, 0);
+  return inicio.getTime();
+}
+
+function pintarTiempo(animar = false) {
   if (!estado.tiempo) return;
+  if (!estado.inicioManual) {
+    $("#hora-inicio").value = new Date().toTimeString().slice(0, 5);
+  }
   const { horas, minutos } = estado.tiempo, impresion = horas * 60, total = impresion + minutos;
-  const ahora = Date.now(), fin = new Date(ahora + total * 60000), hoy = new Date();
+  const inicio = inicioLanzamiento(), finImpresion = inicio + impresion * 60000, fin = inicio + total * 60000;
   const reloj = (t) => new Date(t).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
-  const dia = fin.toDateString() === hoy.toDateString() ? "hoy"
-    : fin.toDateString() === new Date(hoy.getTime() + 86400000).toDateString() ? "mañana"
-    : fin.toLocaleDateString("es-ES", { weekday: "long" });
-  $("#tiempo-fin").replaceChildren(`Lista ${dia} a las ${reloj(fin)}`, el("small", { textContent: "si la lanzas ahora" }));
-  const tramos = [["Impresión", impresion, 1], ["Acabado", minutos, 2]].filter(([, m]) => m > 0);
-  const barra = $("#tiempo-barra");
-  barra.replaceChildren(...tramos.map(([nombre, m, serie]) => {
-    const t = el("div", { className: "tiempo-tramo", textContent: duracion(m / 60), title: `${nombre}: ${duracion(m / 60)}` });
-    t.style.setProperty("--c", `var(--serie-${serie})`);
-    t.style.setProperty("--peso", m);
-    return t;
-  }));
-  barra.setAttribute("aria-label", tramos.map(([n, m]) => `${n} ${duracion(m / 60)}`).join(", "));
-  const marca = (clase, texto, hora, posicion) => {
-    const m = el("span", { className: clase }, [texto, el("b", { textContent: hora })]);
-    if (posicion !== undefined) m.style.left = `${posicion * 100}%`;
-    return m;
+  const dias = Math.round((new Date(fin).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86400000);
+  const dia = dias === 0 ? "hoy" : dias === 1 ? "mañana"
+    : new Date(fin).toLocaleDateString("es-ES", { weekday: "long" });
+
+  const C = 110, R = 88, horaDe = (t) => { const d = new Date(t); return d.getHours() + d.getMinutes() / 60; };
+  const punto = (h, r = R) => {
+    const a = ((h / 24) * 360 - 90) * Math.PI / 180;
+    return [C + r * Math.cos(a), C + r * Math.sin(a)];
   };
-  const corte = total ? impresion / total : 1, finImpresion = reloj(ahora + impresion * 60000);
-  const medio = minutos > 0 && corte > 0.25 && corte < 0.8;
-  $("#tiempo-marcas").replaceChildren(
-    marca("", "Ahora", reloj(ahora)),
-    ...(medio ? [marca("medio", "Acaba de imprimir", finImpresion, corte)] : []),
-    marca("final", !minutos ? "Acaba" : medio ? "Lista" : `Imprime hasta ${finImpresion} · lista`, reloj(fin)),
-  );
-  $("#tiempo-leyenda").replaceChildren(...tramos.map(([nombre, , serie]) => {
-    const i = el("i");
-    i.style.setProperty("--c", `var(--serie-${serie})`);
-    return el("span", {}, [i, nombre]);
-  }));
-  requestAnimationFrame(() => {
-    for (const t of barra.children) {
-      t.style.setProperty("--tinta", tinta(t));
-      t.classList.toggle("sin-texto", t.scrollWidth > t.clientWidth);
-    }
+  const arco = (desde, horasArco, serie, titulo) => {
+    const hueco = (2 / R) * (12 / Math.PI) / 2, largo = Math.min(horasArco, 23.99) - 2 * hueco;
+    if (largo <= 0) return [];
+    const [x1, y1] = punto(desde + hueco), [x2, y2] = punto(desde + hueco + largo);
+    return [svg("path", { class: "arco", pathLength: 1, style: `--c: var(--serie-${serie})`,
+      d: `M${x1} ${y1} A${R} ${R} 0 ${largo > 12 ? 1 : 0} 1 ${x2} ${y2}` }, svg("title", {}, titulo))];
+  };
+  const h0 = horaDe(inicio), restante = Math.max(0, 24 - horas);
+  const marcas = Array.from({ length: 24 }, (_, h) => {
+    const mayor = h % 6 === 0, [x1, y1] = punto(h, 76), [x2, y2] = punto(h, mayor ? 70 : 73);
+    return svg("line", { class: `marca-hora ${mayor ? "mayor" : ""}`, x1, y1, x2, y2 });
   });
+  const numeros = [0, 6, 12, 18].map((h) => {
+    const [x, y] = punto(h, 61);
+    return svg("text", { class: "numero-hora", x, y }, String(h));
+  });
+  const [ax1, ay1] = punto(horaDe(Date.now()), R - 12), [ax2, ay2] = punto(horaDe(Date.now()), R + 12);
+  const extremo = (h, serie, titulo) => {
+    const [x, y] = punto(h);
+    return svg("circle", { class: "extremo", cx: x, cy: y, r: 5, style: `--c: var(--serie-${serie})` }, svg("title", {}, titulo));
+  };
+  const lienzo = $("#reloj");
+  lienzo.classList.toggle("animar", animar);
+  lienzo.replaceChildren(
+    svg("circle", { class: "pista", cx: C, cy: C, r: R }),
+    ...marcas, ...numeros,
+    ...arco(h0, horas, 1, `Impresión: ${reloj(inicio)} → ${reloj(finImpresion)} (${duracion(horas)})`),
+    ...(minutos > 0 && restante > 0
+      ? arco(h0 + horas, Math.min(minutos / 60, restante), 2, `Acabado: ${reloj(finImpresion)} → ${reloj(fin)} (${duracion(minutos / 60)})`) : []),
+    svg("line", { class: "ahora", x1: ax1, y1: ay1, x2: ax2, y2: ay2 }, svg("title", {}, `Ahora: ${reloj(Date.now())}`)),
+    extremo(h0, 1, `Empieza: ${reloj(inicio)}`),
+    extremo(horaDe(fin), minutos > 0 ? 2 : 1, `Lista: ${reloj(fin)}`),
+    svg("text", { class: "centro-valor", x: C, y: C + 4 }, duracion(total / 60)),
+    svg("text", { class: "centro-texto", x: C, y: C + 24 }, "en total"),
+  );
+  lienzo.setAttribute("aria-label", `Empieza ${reloj(inicio)}, imprime ${duracion(horas)} hasta ${reloj(finImpresion)}`
+    + `${minutos > 0 ? `, acabado ${duracion(minutos / 60)}` : ""}, lista ${dia} a las ${reloj(fin)}`);
+
+  const fila = (texto, valor, serie, clase = "") => {
+    const dt = el("dt", { className: clase }, [...(serie ? [el("i")] : []), texto]);
+    if (serie) dt.firstChild.style.setProperty("--c", `var(--serie-${serie})`);
+    return [dt, el("dd", { className: clase, textContent: valor })];
+  };
+  $("#tiempo-datos").replaceChildren(
+    ...fila(`Impresión · ${duracion(horas)}`, reloj(finImpresion), 1),
+    ...(minutos > 0 ? fila(`Acabado · ${duracion(minutos / 60)}`, reloj(fin), 2) : []),
+    ...fila(`Lista ${dia}`, reloj(fin), 0, "lista"),
+  );
 }
 
 function ajustarRellenos() {
@@ -648,8 +685,11 @@ function iniciar() {
   $("#desglose-pdf").addEventListener("change", programar);
   $("#exportar").addEventListener("click", exportar);
   $("#aplicar-complejidad").addEventListener("change", programar);
-  setInterval(pintarTiempo, 60000);
-  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { colocarEtiquetas(); pintarTiempo(); });
+  setInterval(() => pintarTiempo(), 60000);
+  $("#hora-inicio").addEventListener("input", (e) => {
+    estado.inicioManual = Boolean(e.target.value);
+    pintarTiempo();
+  });
   new ResizeObserver(() => ajustarRellenos()).observe($("#resultado"));
   for (const b of document.querySelectorAll(".pestana")) b.addEventListener("click", () => cambiarVista(b.dataset.vista));
 

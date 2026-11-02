@@ -68,17 +68,14 @@
           <div id="filamentos" class="filamentos"></div>
         </form>
 
-        <section class="tarjeta tiempo relleno entra" data-minimo="132" style="--i:3">
-          <div class="tiempo-cabecera">
-            <div>
+        <section class="tarjeta tiempo relleno entra" data-minimo="120" style="--i:3">
+          <svg id="reloj" class="reloj" viewBox="0 0 220 220" role="img"></svg>
+          <div class="tiempo-lado">
+            <div class="tiempo-cabecera">
               <span class="etiqueta">Tiempo</span>
-              <div id="tiempo-leyenda" class="leyenda"></div>
+              <label class="hora-inicio">La lanzo a las <input id="hora-inicio" type="time"></label>
             </div>
-            <span id="tiempo-fin" class="tiempo-fin"></span>
-          </div>
-          <div class="tiempo-grafico">
-            <div id="tiempo-barra" class="tiempo-barra" role="img"></div>
-            <div id="tiempo-marcas" class="tiempo-marcas"></div>
+            <dl id="tiempo-datos" class="tiempo-datos"></dl>
           </div>
         </section>
       </div>
