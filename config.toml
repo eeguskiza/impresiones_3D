@@ -43,11 +43,9 @@ larga = 0.04
 minimo = -0.05
 maximo = 0.15
 
-# Precio €/kg por perfil (con o sin "@impresora") o por tipo; si no aparece, se usa el del perfil de Bambu Studio
-# PLA = precio para cualquier PLA que no tenga su propia línea
+# Precio €/kg por defecto según el tipo de filamento (bobina suelta en la tienda de Bambu Lab).
+# Se cambian desde la pestaña «Ajustes» de la app, que los guarda en la base de datos y tienen prioridad.
+# También admite líneas por perfil ("Bambu PLA Matte" = 24.99), que ganan sobre el tipo.
 [filamentos_eur_kg]
-PLA = 19.99
-"Bambu PLA Basic" = 19.99
-"Bambu PLA Matte" = 19.99
-"Bambu PLA Silk+" = 19.99
-"Bambu PETG Translucent" = 24.99
+PLA = 17.5
+PETG = 18.5

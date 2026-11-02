@@ -648,6 +648,37 @@ async function cargarHistorial() {
   }));
 }
 
+async function cargarAjustes() {
+  const { filamentos_eur_kg: precios } = await (await api("/api/ajustes")).json();
+  $("#ajustes-filamentos").replaceChildren(...Object.entries(precios).map(([tipo, eur]) =>
+    el("label", { className: "campo" }, [tipo, el("span", { className: "con-unidad" }, [
+      el("input", { name: tipo, inputMode: "decimal", value: String(eur).replace(".", ",") }),
+      el("i", { textContent: "€/kg" })])])));
+}
+
+async function guardarAjustes(e) {
+  e.preventDefault();
+  const precios = {};
+  for (const i of $("#ajustes-filamentos").querySelectorAll("input")) {
+    const v = numero(i.value);
+    if (!v) return tostada(`Precio no válido para ${i.name}`);
+    precios[i.name] = v;
+  }
+  const boton = $("#guardar-ajustes");
+  boton.disabled = true;
+  try {
+    await api("/api/ajustes", {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filamentos_eur_kg: precios }),
+    });
+    await cargarAjustes();
+    tostada("Precios guardados: se aplican al cargar el siguiente .3mf");
+  } catch (err) {
+    tostada(err.message);
+  } finally {
+    boton.disabled = false;
+  }
+}
+
 function reiniciar() {
   clearTimeout(estado.temporizador);
   estado.peticion?.abort();
@@ -681,7 +712,9 @@ function cambiarVista(nombre) {
   }
   $("#vista-nuevo").hidden = nombre !== "nuevo";
   $("#vista-historial").hidden = nombre !== "historial";
+  $("#vista-ajustes").hidden = nombre !== "ajustes";
   if (nombre === "historial") cargarHistorial().catch((e) => tostada(e.message));
+  if (nombre === "ajustes") cargarAjustes().catch((e) => tostada(e.message));
 }
 
 function iniciar() {
@@ -715,6 +748,7 @@ function iniciar() {
   $("#formulario").addEventListener("submit", (e) => e.preventDefault());
   $("#desglose-pdf").addEventListener("change", programar);
   $("#exportar").addEventListener("click", exportar);
+  $("#form-ajustes").addEventListener("submit", guardarAjustes);
   $("#aplicar-complejidad").addEventListener("change", programar);
   new ResizeObserver(() => ajustarRellenos()).observe($("#resultado"));
   for (const b of document.querySelectorAll(".pestana")) b.addEventListener("click", () => cambiarVista(b.dataset.vista));

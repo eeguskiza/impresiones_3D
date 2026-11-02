@@ -14,6 +14,7 @@
   <nav class="pestanas" role="tablist">
     <button class="pestana activa" role="tab" aria-selected="true" data-vista="nuevo">Nuevo</button>
     <button class="pestana" role="tab" aria-selected="false" data-vista="historial">Historial</button>
+    <button class="pestana" role="tab" aria-selected="false" data-vista="ajustes">Ajustes</button>
   </nav>
 </header>
 
@@ -166,6 +167,15 @@
       </div>
       <p id="historial-vacio" class="tenue" hidden>Todavía no has exportado ningún presupuesto.</p>
     </div>
+  </section>
+
+  <section id="vista-ajustes" class="vista" hidden>
+    <form id="form-ajustes" class="tarjeta ajustes" autocomplete="off" novalidate>
+      <h2>Precio del filamento</h2>
+      <p class="tenue">Precio por kilo de una bobina suelta. Se aplica a todos los filamentos de ese tipo al cargar un .3mf.</p>
+      <div id="ajustes-filamentos" class="ajustes-lista"></div>
+      <button id="guardar-ajustes" type="submit" class="boton">Guardar</button>
+    </form>
   </section>
 </main>
 

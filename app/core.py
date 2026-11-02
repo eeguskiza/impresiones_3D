@@ -30,6 +30,7 @@ VARIABLES = {"EMISOR_NOMBRE": ("emisor", "nombre"), "EMISOR_BIZUM": ("emisor", "
 TABLA = ("CREATE TABLE IF NOT EXISTS presupuestos (id INTEGER PRIMARY KEY, fecha TEXT, cliente TEXT, modelo TEXT, "
          "fichero TEXT, horas DOUBLE PRECISION, gramos DOUBLE PRECISION, coste DOUBLE PRECISION, "
          "precio DOUBLE PRECISION, pagado INTEGER DEFAULT 0)")
+TABLA_FILAMENTOS = "CREATE TABLE IF NOT EXISTS filamentos (tipo TEXT PRIMARY KEY, eur_kg DOUBLE PRECISION)"
 
 
 class ErrorPresupuesto(Exception):
@@ -413,6 +414,7 @@ def _db(destino):
             if postgres:
                 ejecutar("SELECT pg_advisory_xact_lock(3203)")
             ejecutar(TABLA)
+            ejecutar(TABLA_FILAMENTOS)
             _TABLAS_CREADAS.add(str(destino))
         yield ejecutar
         db.commit()
@@ -455,3 +457,15 @@ def historial(destino):
 def marcar_pagado(destino, id_, pagado):
     with _db(destino) as ejecutar:
         return ejecutar("UPDATE presupuestos SET pagado = ? WHERE id = ?", (int(pagado), id_)).rowcount > 0
+
+
+def precios_filamento(destino):
+    with _db(destino) as ejecutar:
+        return {f["tipo"]: f["eur_kg"] for f in ejecutar("SELECT tipo, eur_kg FROM filamentos").fetchall()}
+
+
+def guardar_precios_filamento(destino, precios):
+    with _db(destino) as ejecutar:
+        for tipo, eur_kg in precios.items():
+            ejecutar("INSERT INTO filamentos (tipo, eur_kg) VALUES (?, ?) "
+                     "ON CONFLICT (tipo) DO UPDATE SET eur_kg = excluded.eur_kg", (tipo, eur_kg))

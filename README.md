@@ -7,6 +7,7 @@ App web para presupuestar impresiones 3D a partir de un `.3mf` de Bambu Studio (
 - Presupuesto de una pieza o pedido combo de hasta 20 piezas.
 - PDF de una página con todos los conceptos y su importe en una sola tabla que termina en el total.
 - Historial con numeración correlativa y marca de pagado.
+- Ajustes: precio por kilo de cada tipo de filamento (PLA, PETG…), guardado en la base de datos. Los valores por defecto están en `[filamentos_eur_kg]` de `config.toml`; para añadir un tipo nuevo basta con una línea ahí.
 
 ## Local (Ubuntu / WSL2)
 

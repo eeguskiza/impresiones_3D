@@ -220,6 +220,10 @@ input:focus-visible + .interruptor { box-shadow: 0 0 0 0.25rem color-mix(in srgb
 .marco iframe { position: absolute; top: 0; left: 0; width: 794px; height: 1123px; border: 0; transform-origin: 0 0; pointer-events: none; background: #fff; box-shadow: 0 0 0 1px var(--linea), 0 8px 24px rgb(30 41 90 / .1); }
 
 .historial h2 { margin-bottom: 1rem; }
+.ajustes { max-width: 32rem; margin: 0 auto; display: grid; gap: 1rem; justify-items: start; }
+.ajustes p { margin: 0; font-size: .9rem; }
+.ajustes-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 0.875rem; width: 100%; }
+.ajustes-lista .con-unidad input { padding-right: 3.25rem; }
 .tabla-contenedor { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: .9rem; }
 th { text-align: left; font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--tenue); font-weight: 500; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--linea); white-space: nowrap; }

@@ -69,6 +69,10 @@ class Pagado(BaseModel):
     pagado: bool
 
 
+class Ajustes(BaseModel):
+    filamentos_eur_kg: dict[str, float] = Field(max_length=50)
+
+
 def destino_por_defecto():
     url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
     if url:
@@ -118,14 +122,22 @@ def crear_app(config=BASE / "config.toml", db=None):
     db = db or destino_por_defecto()
     clave = os.environ.get("APP_CLAVE")
     proximo = {"numero": None, "hasta": 0.0}
+    precios = {"valores": None, "hasta": 0.0}
 
     def siguiente_numero():
         if proximo["numero"] is None or time.monotonic() > proximo["hasta"]:
             proximo.update(numero=core.siguiente_numero(db), hasta=time.monotonic() + 30)
         return proximo["numero"]
 
+    def precios_guardados():
+        if precios["valores"] is None or time.monotonic() > precios["hasta"]:
+            precios.update(valores=core.precios_filamento(db), hasta=time.monotonic() + 30)
+        return precios["valores"]
+
     def cfg():
-        return core.cargar_config(config)
+        c = core.cargar_config(config)
+        c["filamentos_eur_kg"] = {**c.get("filamentos_eur_kg", {}), **precios_guardados()}
+        return c
 
     def construir(datos, minutos=0, margen=None):
         c = cfg()
@@ -231,6 +243,19 @@ def crear_app(config=BASE / "config.toml", db=None):
                 "acento": c["marca"]["color_acento"], "margen": c["produccion"]["margen"],
                 "minutos": c["produccion"]["minutos_por_defecto"], "pdf_servidor": documento.pdf_disponible(),
                 "complejidad": {k: c.get("complejidad", {}).get(k, 0) for k in ("minimo", "maximo")}}
+
+    @app.get("/api/ajustes")
+    def ver_ajustes():
+        return {"filamentos_eur_kg": cfg()["filamentos_eur_kg"]}
+
+    @app.put("/api/ajustes")
+    def guardar_ajustes(ajustes: Ajustes):
+        nuevos = {k.strip(): v for k, v in ajustes.filamentos_eur_kg.items() if k.strip()}
+        if any(not 0 < v < 1000 for v in nuevos.values()):
+            raise HTTPException(422, "El precio por kilo debe estar entre 0 y 1000 €.")
+        core.guardar_precios_filamento(db, nuevos)
+        precios["valores"] = None
+        return ver_ajustes()
 
     @app.post("/api/analizar")
     async def analizar(request: Request, fichero: str = "modelo.3mf", pintado: bool | None = None):

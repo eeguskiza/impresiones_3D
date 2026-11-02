@@ -115,3 +115,17 @@ def test_conceptos_suman_el_total(cliente, ejemplo):
         ctx = documento.contexto_combo(cfg, piezas, d, "Ana", "2026-0001", True, margen=0.05)
         lineas = [l for g in ctx["grupos"] for l in g["lineas"]] + ctx["comunes"]
         assert round(sum(round(l["valor"], 2) for l in lineas), 2) == d.precio
+
+
+def test_ajustes_precio_filamento(cliente):
+    assert cliente.get("/api/ajustes").json() == {"filamentos_eur_kg": {}}
+    r = cliente.put("/api/ajustes", json={"filamentos_eur_kg": {"PLA": 17.5, "PETG": 21}})
+    assert r.status_code == 200 and r.json() == {"filamentos_eur_kg": {"PLA": 17.5, "PETG": 21}}
+    assert cliente.put("/api/ajustes", json={"filamentos_eur_kg": {"PLA": 0}}).status_code == 422
+    cliente.put("/api/ajustes", json={"filamentos_eur_kg": {"PLA": 19}})
+    assert cliente.get("/api/ajustes").json()["filamentos_eur_kg"] == {"PLA": 19, "PETG": 21}
+
+
+def test_ajustes_se_aplican_al_analizar(cliente, ejemplo):
+    cliente.put("/api/ajustes", json={"filamentos_eur_kg": {"PLA": 17.5}})
+    assert {(f["eur_kg"], f["origen"]) for f in analizar(cliente, ejemplo)["filamentos"]} == {(17.5, "tipo")}
